@@ -1,14 +1,13 @@
 import logging
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.auth import get_current_user, require_role, AuthenticatedUser
 from app.core.supabase import get_supabase_admin
 from app.schemas.payroll import (
-    SalaryCalculationInput,
-    SalaryStructureBreakdown,
-    SalaryStructureCreateOrUpdate,
+    SalaryStructureUpdate,
     SalaryStructureResponse,
-    GeneratePayslipsRequest,
+    SalaryStructureBreakdown,
+    GeneratePayslipRequest,
     PayslipResponse,
 )
 from app.services.payroll_service import compute_salary_breakdown, calculate_monthly_payslip
@@ -24,7 +23,8 @@ router = APIRouter(prefix="/payroll", tags=["Payroll & Salary Management"])
 @router.get("/my-salary", response_model=SalaryStructureResponse)
 async def get_my_salary(current_user: AuthenticatedUser = Depends(get_current_user)):
     """
-    3.6.1 Employee View: Read-only breakdown of the currently logged-in employee's salary structure.
+    3.6.1 Employee View: Read-only breakdown of the currently logged-in employee's salary.
+    Queries public.salary_structures and computes breakdown components.
     """
     supabase = get_supabase_admin()
     try:
@@ -34,7 +34,18 @@ async def get_my_salary(current_user: AuthenticatedUser = Depends(get_current_us
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Salary structure not found for current user"
             )
-        return SalaryStructureResponse(**res.data)
+        data = res.data
+        base_pay = float(data.get("base_pay", 0.0))
+        breakdown = compute_salary_breakdown(base_pay)
+
+        return SalaryStructureResponse(
+            id=str(data.get("id")),
+            user_id=str(data.get("user_id")),
+            base_pay=base_pay,
+            breakdown=breakdown,
+            created_at=str(data.get("created_at")),
+            updated_at=str(data.get("updated_at")),
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -45,44 +56,9 @@ async def get_my_salary(current_user: AuthenticatedUser = Depends(get_current_us
         )
 
 
-@router.get("/my-payslips", response_model=List[PayslipResponse])
-async def get_my_payslips(current_user: AuthenticatedUser = Depends(get_current_user)):
-    """
-    3.6.1 Employee View: View history of generated monthly payslips for current employee.
-    """
-    supabase = get_supabase_admin()
-    try:
-        res = (
-            supabase.table("payslips")
-            .select("*")
-            .eq("user_id", current_user.id)
-            .order("year", desc=True)
-            .order("month", desc=True)
-            .execute()
-        )
-        return [PayslipResponse(**row) for row in (res.data or [])]
-    except Exception as e:
-        logger.error(f"Error fetching payslips for user {current_user.id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error fetching payslips: {str(e)}"
-        )
-
-
 # ==========================================
 # 3.6.2 Admin Payroll Control
 # ==========================================
-
-@router.post("/calculate-preview", response_model=SalaryStructureBreakdown)
-async def preview_salary_calculation(
-    payload: SalaryCalculationInput,
-    admin_user: AuthenticatedUser = Depends(require_role("ADMIN_HR")),
-):
-    """
-    Admin tool to preview dynamic auto-calculation of salary components and deductions before saving.
-    """
-    return compute_salary_breakdown(payload)
-
 
 @router.get("/all", response_model=List[SalaryStructureResponse])
 async def get_all_salaries(admin_user: AuthenticatedUser = Depends(require_role("ADMIN_HR"))):
@@ -92,7 +68,20 @@ async def get_all_salaries(admin_user: AuthenticatedUser = Depends(require_role(
     supabase = get_supabase_admin()
     try:
         res = supabase.table("salary_structures").select("*").execute()
-        return [SalaryStructureResponse(**row) for row in (res.data or [])]
+        items = []
+        for row in (res.data or []):
+            base_pay = float(row.get("base_pay", 0.0))
+            items.append(
+                SalaryStructureResponse(
+                    id=str(row.get("id")),
+                    user_id=str(row.get("user_id")),
+                    base_pay=base_pay,
+                    breakdown=compute_salary_breakdown(base_pay),
+                    created_at=str(row.get("created_at")),
+                    updated_at=str(row.get("updated_at")),
+                )
+            )
+        return items
     except Exception as e:
         logger.error(f"Error fetching all salary structures: {e}")
         raise HTTPException(
@@ -117,7 +106,16 @@ async def get_employee_salary(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Salary structure not found for user {user_id}"
             )
-        return SalaryStructureResponse(**res.data)
+        data = res.data
+        base_pay = float(data.get("base_pay", 0.0))
+        return SalaryStructureResponse(
+            id=str(data.get("id")),
+            user_id=str(data.get("user_id")),
+            base_pay=base_pay,
+            breakdown=compute_salary_breakdown(base_pay),
+            created_at=str(data.get("created_at")),
+            updated_at=str(data.get("updated_at")),
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -131,45 +129,18 @@ async def get_employee_salary(
 @router.put("/employee/{user_id}", response_model=SalaryStructureResponse)
 async def update_employee_salary(
     user_id: str,
-    payload: SalaryStructureCreateOrUpdate,
+    payload: SalaryStructureUpdate,
     admin_user: AuthenticatedUser = Depends(require_role("ADMIN_HR")),
 ):
     """
-    3.6.2 Admin Control: Update an employee's salary structure.
-    Automatically recalculates Basic, HRA, Fixed Allowance, PF, PT, and Net Pay ensuring payroll accuracy.
+    3.6.2 Admin Control: Updates base_pay in public.salary_structures for an employee.
     """
-    # 1. Compute exact mathematical breakdown
-    breakdown = compute_salary_breakdown(payload)
-
-    # 2. Prepare payload
+    supabase = get_supabase_admin()
     record_data = {
         "user_id": user_id,
-        "monthly_wage": breakdown.monthly_wage,
-        "yearly_wage": breakdown.yearly_wage,
-        "basic_pct": breakdown.basic_pct,
-        "basic_salary": breakdown.basic_salary,
-        "hra_pct": breakdown.hra_pct,
-        "hra": breakdown.hra,
-        "standard_allowance": breakdown.standard_allowance,
-        "bonus_pct": breakdown.bonus_pct,
-        "performance_bonus": breakdown.performance_bonus,
-        "lta_pct": breakdown.lta_pct,
-        "lta": breakdown.lta,
-        "fixed_allowance": breakdown.fixed_allowance,
-        "pf_pct": breakdown.pf_pct,
-        "provident_fund": breakdown.provident_fund,
-        "professional_tax": breakdown.professional_tax,
-        "gross_salary": breakdown.gross_salary,
-        "total_deductions": breakdown.total_deductions,
-        "net_salary": breakdown.net_salary,
-        "currency": payload.currency or "INR",
+        "base_pay": payload.base_pay,
         "updated_at": "now()",
     }
-    if payload.effective_from:
-        record_data["effective_from"] = str(payload.effective_from)
-
-    # 3. Upsert to Supabase
-    supabase = get_supabase_admin()
     try:
         res = supabase.table("salary_structures").upsert(record_data, on_conflict="user_id").execute()
         if not res.data:
@@ -177,7 +148,16 @@ async def update_employee_salary(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Failed to update salary structure in database"
             )
-        return SalaryStructureResponse(**res.data[0])
+        data = res.data[0]
+        base_pay = float(data.get("base_pay", 0.0))
+        return SalaryStructureResponse(
+            id=str(data.get("id")),
+            user_id=str(data.get("user_id")),
+            base_pay=base_pay,
+            breakdown=compute_salary_breakdown(base_pay),
+            created_at=str(data.get("created_at")),
+            updated_at=str(data.get("updated_at")),
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -189,16 +169,15 @@ async def update_employee_salary(
 
 
 @router.post("/generate-payslips", response_model=List[PayslipResponse])
-async def generate_monthly_payslips(
-    payload: GeneratePayslipsRequest,
+async def generate_payslips(
+    payload: GeneratePayslipRequest,
     admin_user: AuthenticatedUser = Depends(require_role("ADMIN_HR")),
 ):
     """
-    3.6.2 Admin Control: Batch generates finalized monthly payslips for employees factoring in unpaid leave days.
+    3.6.2 Admin Control: Computes monthly payslips for employees factoring in unpaid leaves from public.leave_log.
     """
     supabase = get_supabase_admin()
 
-    # 1. Fetch target salary structures
     try:
         query = supabase.table("salary_structures").select("*")
         if payload.user_ids:
@@ -206,92 +185,45 @@ async def generate_monthly_payslips(
         res = query.execute()
         salary_records = res.data or []
     except Exception as e:
-        logger.error(f"Error fetching salary records for payslip generation: {e}")
+        logger.error(f"Error querying salary structures: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error querying salary structures: {str(e)}"
+            detail=f"Database query error: {str(e)}"
         )
 
-    if not salary_records:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No salary structure records found to generate payslips."
-        )
-
-    generated_payslips = []
-
+    results = []
     for rec in salary_records:
         u_id = rec["user_id"]
+        base_pay = float(rec.get("base_pay", 0.0))
 
-        # 2. Check unpaid leave days from leave_requests if available
-        unpaid_days = 0
+        # Count approved unpaid leaves for this user from public.leave_log
+        unpaid_count = 0
         try:
             leave_res = (
-                supabase.table("leave_requests")
-                .select("total_days")
+                supabase.table("leave_log")
+                .select("id")
                 .eq("user_id", u_id)
-                .eq("leave_type", "UNPAID")
-                .eq("status", "APPROVED")
+                .ilike("leave_type", "%unpaid%")
+                .ilike("approved", "%approved%")
                 .execute()
             )
             if leave_res.data:
-                unpaid_days = sum(item.get("total_days", 0) for item in leave_res.data)
+                unpaid_count = len(leave_res.data)
         except Exception:
-            # Leave table may not have records yet
-            unpaid_days = 0
+            unpaid_count = 0
 
-        # 3. Calculate payslip with deduction
-        breakdown = compute_salary_breakdown(
-            SalaryCalculationInput(
-                monthly_wage=rec.get("monthly_wage", 0.0),
-                basic_pct=rec.get("basic_pct", 50.0),
-                hra_pct=rec.get("hra_pct", 50.0),
-                standard_allowance=rec.get("standard_allowance", 4167.0),
-                bonus_pct=rec.get("bonus_pct", 8.33),
-                lta_pct=rec.get("lta_pct", 8.33),
-                pf_pct=rec.get("pf_pct", 12.0),
-                professional_tax=rec.get("professional_tax", 200.0),
+        slip = calculate_monthly_payslip(
+            base_pay=base_pay,
+            unpaid_leave_days=unpaid_count,
+            total_working_days=payload.total_working_days
+        )
+        results.append(
+            PayslipResponse(
+                user_id=u_id,
+                month=payload.month,
+                year=payload.year,
+                **slip
             )
         )
 
-        slip_data = calculate_monthly_payslip(
-            salary_breakdown=breakdown,
-            unpaid_leave_days=unpaid_days,
-            total_working_days=payload.total_working_days,
-        )
-
-        payslip_record = {
-            "user_id": u_id,
-            "month": payload.month,
-            "year": payload.year,
-            "monthly_wage": slip_data["monthly_wage"],
-            "basic_salary": slip_data["basic_salary"],
-            "hra": slip_data["hra"],
-            "standard_allowance": slip_data["standard_allowance"],
-            "performance_bonus": slip_data["performance_bonus"],
-            "lta": slip_data["lta"],
-            "fixed_allowance": slip_data["fixed_allowance"],
-            "gross_salary": slip_data["gross_salary"],
-            "unpaid_leave_days": slip_data["unpaid_leave_days"],
-            "unpaid_leave_deduction": slip_data["unpaid_leave_deduction"],
-            "provident_fund": slip_data["provident_fund"],
-            "professional_tax": slip_data["professional_tax"],
-            "total_deductions": slip_data["total_deductions"],
-            "net_pay": slip_data["net_pay"],
-            "status": "GENERATED",
-            "generated_by": admin_user.id,
-            "updated_at": "now()",
-        }
-
-        # 4. Upsert payslip for this user/month/year
-        try:
-            insert_res = supabase.table("payslips").upsert(
-                payslip_record,
-                on_conflict="user_id,month,year"
-            ).execute()
-            if insert_res.data:
-                generated_payslips.append(PayslipResponse(**insert_res.data[0]))
-        except Exception as e:
-            logger.error(f"Error saving payslip for user {u_id}: {e}")
-
-    return generated_payslips
+    return results

@@ -1,38 +1,40 @@
 import logging
 from typing import Dict, Any
-from app.schemas.payroll import SalaryCalculationInput, SalaryStructureBreakdown
+from app.schemas.payroll import SalaryStructureBreakdown
 
 logger = logging.getLogger(__name__)
 
 
-def compute_salary_breakdown(input_data: SalaryCalculationInput) -> SalaryStructureBreakdown:
+def compute_salary_breakdown(base_pay: float) -> SalaryStructureBreakdown:
     """
-    Computes all salary components and deductions in exact compliance with the Excalidraw reference rules:
-    - Monthly Wage & Yearly Wage (= Monthly Wage * 12)
-    - Basic Salary = basic_pct % of monthly wage (Default 50%)
-    - HRA = hra_pct % of basic salary (Default 50%)
-    - Standard Allowance = Fixed amount (Default ₹4,167)
-    - Performance Bonus = bonus_pct % of basic salary (Default 8.33%)
-    - LTA = lta_pct % of basic salary (Default 8.33%)
-    - Fixed Allowance = Monthly Wage - (Basic + HRA + Standard Allowance + Bonus + LTA)
-    - PF = pf_pct % of basic salary (Default 12%)
-    - Professional Tax = Fixed amount (Default ₹200)
-    - Gross = Monthly Wage
-    - Net = Gross - Total Deductions
+    Computes all salary components and deductions from base_pay in exact compliance with the Excalidraw reference:
+    - Monthly Wage = base_pay
+    - Yearly Wage = base_pay * 12
+    - Basic Salary = 50% of base_pay
+    - HRA = 50% of Basic Salary
+    - Standard Allowance = Fixed ₹4,167
+    - Performance Bonus = 8.33% of Basic Salary
+    - LTA = 8.33% of Basic Salary
+    - Fixed Allowance = base_pay - (Basic + HRA + Standard Allowance + Bonus + LTA)
+    - PF = 12% of Basic Salary
+    - Professional Tax = Fixed ₹200
+    - Gross = base_pay
+    - Total Deductions = PF + PT
+    - Net Salary = Gross - Total Deductions
     """
-    monthly_wage = round(float(input_data.monthly_wage), 2)
+    monthly_wage = round(float(base_pay), 2)
     yearly_wage = round(monthly_wage * 12, 2)
 
-    # 1. Basic Salary
-    basic_salary = round(monthly_wage * (input_data.basic_pct / 100.0), 2)
+    # 1. Basic Salary (50% of monthly wage)
+    basic_salary = round(monthly_wage * 0.50, 2)
 
-    # 2. Component allowances relative to Basic
-    hra = round(basic_salary * (input_data.hra_pct / 100.0), 2)
-    standard_allowance = round(float(input_data.standard_allowance), 2)
-    performance_bonus = round(basic_salary * (input_data.bonus_pct / 100.0), 2)
-    lta = round(basic_salary * (input_data.lta_pct / 100.0), 2)
+    # 2. Allowances
+    hra = round(basic_salary * 0.50, 2)
+    standard_allowance = 4167.00
+    performance_bonus = round(basic_salary * 0.0833, 2)
+    lta = round(basic_salary * 0.0833, 2)
 
-    # 3. Fixed Allowance is remainder
+    # 3. Fixed Allowance (remainder)
     subtotal_components = basic_salary + hra + standard_allowance + performance_bonus + lta
     fixed_allowance = round(monthly_wage - subtotal_components, 2)
     if fixed_allowance < 0:
@@ -41,8 +43,8 @@ def compute_salary_breakdown(input_data: SalaryCalculationInput) -> SalaryStruct
     gross_salary = monthly_wage
 
     # 4. Deductions
-    provident_fund = round(basic_salary * (input_data.pf_pct / 100.0), 2)
-    professional_tax = round(float(input_data.professional_tax), 2)
+    provident_fund = round(basic_salary * 0.12, 2)
+    professional_tax = 200.00
     total_deductions = round(provident_fund + professional_tax, 2)
 
     # 5. Net Salary
@@ -53,18 +55,18 @@ def compute_salary_breakdown(input_data: SalaryCalculationInput) -> SalaryStruct
     return SalaryStructureBreakdown(
         monthly_wage=monthly_wage,
         yearly_wage=yearly_wage,
-        basic_pct=input_data.basic_pct,
+        basic_pct=50.00,
         basic_salary=basic_salary,
-        hra_pct=input_data.hra_pct,
+        hra_pct=50.00,
         hra=hra,
         standard_allowance=standard_allowance,
-        bonus_pct=input_data.bonus_pct,
+        bonus_pct=8.33,
         performance_bonus=performance_bonus,
-        lta_pct=input_data.lta_pct,
+        lta_pct=8.33,
         lta=lta,
         fixed_allowance=fixed_allowance,
         gross_salary=gross_salary,
-        pf_pct=input_data.pf_pct,
+        pf_pct=12.00,
         provident_fund=provident_fund,
         professional_tax=professional_tax,
         total_deductions=total_deductions,
@@ -73,36 +75,37 @@ def compute_salary_breakdown(input_data: SalaryCalculationInput) -> SalaryStruct
 
 
 def calculate_monthly_payslip(
-    salary_breakdown: SalaryStructureBreakdown,
+    base_pay: float,
     unpaid_leave_days: int = 0,
     total_working_days: int = 30
 ) -> Dict[str, Any]:
     """
-    Calculates a monthly payslip including proportional Loss of Pay (LOP) for unpaid leave days.
+    Calculates payslip dynamically from base_pay and unpaid leave count from leave_log.
     """
-    daily_rate = round(salary_breakdown.monthly_wage / total_working_days, 2) if total_working_days > 0 else 0.0
+    breakdown = compute_salary_breakdown(base_pay)
+    daily_rate = round(breakdown.monthly_wage / total_working_days, 2) if total_working_days > 0 else 0.0
     lop_deduction = round(daily_rate * unpaid_leave_days, 2)
 
     total_deductions = round(
-        salary_breakdown.provident_fund + salary_breakdown.professional_tax + lop_deduction, 2
+        breakdown.provident_fund + breakdown.professional_tax + lop_deduction, 2
     )
-    net_pay = round(salary_breakdown.gross_salary - total_deductions, 2)
+    net_pay = round(breakdown.gross_salary - total_deductions, 2)
     if net_pay < 0:
         net_pay = 0.0
 
     return {
-        "monthly_wage": salary_breakdown.monthly_wage,
-        "basic_salary": salary_breakdown.basic_salary,
-        "hra": salary_breakdown.hra,
-        "standard_allowance": salary_breakdown.standard_allowance,
-        "performance_bonus": salary_breakdown.performance_bonus,
-        "lta": salary_breakdown.lta,
-        "fixed_allowance": salary_breakdown.fixed_allowance,
-        "gross_salary": salary_breakdown.gross_salary,
+        "monthly_wage": breakdown.monthly_wage,
+        "basic_salary": breakdown.basic_salary,
+        "hra": breakdown.hra,
+        "standard_allowance": breakdown.standard_allowance,
+        "performance_bonus": breakdown.performance_bonus,
+        "lta": breakdown.lta,
+        "fixed_allowance": breakdown.fixed_allowance,
+        "gross_salary": breakdown.gross_salary,
         "unpaid_leave_days": unpaid_leave_days,
         "unpaid_leave_deduction": lop_deduction,
-        "provident_fund": salary_breakdown.provident_fund,
-        "professional_tax": salary_breakdown.professional_tax,
+        "provident_fund": breakdown.provident_fund,
+        "professional_tax": breakdown.professional_tax,
         "total_deductions": total_deductions,
         "net_pay": net_pay,
     }

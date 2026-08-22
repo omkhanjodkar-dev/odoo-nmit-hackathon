@@ -12,7 +12,7 @@ security = HTTPBearer(auto_error=False)
 class AuthenticatedUser(BaseModel):
     id: str
     email: Optional[str] = None
-    role: str = "EMPLOYEE"
+    role: str = "employee"
     employee_id: Optional[str] = None
     app_metadata: dict = {}
     user_metadata: dict = {}
@@ -68,7 +68,7 @@ async def get_current_user(
         )
 
     user_metadata = payload.get("user_metadata", {})
-    role = user_metadata.get("role") or payload.get("role") or "EMPLOYEE"
+    role = str(user_metadata.get("role") or payload.get("role") or "employee").lower()
     employee_id = user_metadata.get("employee_id")
 
     return AuthenticatedUser(
@@ -95,9 +95,22 @@ async def get_optional_user(
 def require_role(required_role: str):
     """
     Dependency generator to restrict endpoint to specific user role.
+    Accepts case-insensitive role match (e.g. 'admin', 'ADMIN_HR').
     """
     async def role_checker(current_user: AuthenticatedUser = Depends(get_current_user)) -> AuthenticatedUser:
-        if current_user.role != required_role:
+        user_role = current_user.role.lower()
+        req = required_role.lower()
+        
+        # Match 'admin', 'admin_hr', 'hr'
+        is_admin_req = req in ["admin", "admin_hr", "hr"]
+        is_user_admin = user_role in ["admin", "admin_hr", "hr"]
+
+        if is_admin_req and not is_user_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Requires role '{required_role}', but current role is '{current_user.role}'."
+            )
+        elif not is_admin_req and user_role != req:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access denied. Requires role '{required_role}', but current role is '{current_user.role}'."

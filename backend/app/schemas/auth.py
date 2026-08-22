@@ -5,20 +5,18 @@ import re
 
 
 class UserRole(str, Enum):
-    EMPLOYEE = "EMPLOYEE"
-    ADMIN_HR = "ADMIN_HR"
+    EMPLOYEE = "employee"
+    ADMIN_HR = "admin"
 
 
 class SignUpRequest(BaseModel):
-    employee_id: str = Field(..., description="Unique Employee ID (e.g. EMP-101)")
+    employee_id: str = Field(..., description="Unique Employee ID (matches public.profiles.employee_id)")
     email: EmailStr = Field(..., description="Work email address")
     password: str = Field(..., min_length=8, description="Password meeting security policy")
-    role: UserRole = Field(default=UserRole.EMPLOYEE, description="User role: EMPLOYEE or ADMIN_HR")
+    role: UserRole = Field(default=UserRole.EMPLOYEE, description="User role: 'employee' or 'admin'")
     first_name: Optional[str] = Field(None, description="First name")
     last_name: Optional[str] = Field(None, description="Last name")
-    phone: Optional[str] = Field(None, description="Contact phone")
-    department: Optional[str] = Field(None, description="Department")
-    designation: Optional[str] = Field(None, description="Job title / Position")
+    phone: Optional[str] = Field(None, description="Contact phone (numeric)")
 
     @field_validator("password")
     def validate_password_strength(cls, v: str) -> str:
@@ -64,13 +62,12 @@ class UserProfileResponse(BaseModel):
     id: str
     user_id: str
     employee_id: str
-    email: str
+    email: Optional[str] = ""
     role: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
-    department: Optional[str] = None
-    designation: Optional[str] = None
     avatar_url: Optional[str] = None
-    joining_date: Optional[str] = None
+    blood_group: Optional[str] = None
+    dob: Optional[str] = None
+    married: Optional[bool] = None
+    emergency_contact: Optional[str] = None
