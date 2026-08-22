@@ -71,8 +71,10 @@ erDiagram
         uuid user_id FK
         text leave_type
         text reason
-        text approved
+        text approval_status
+        text uploads
         timestamptz created_at
+        timestamptz approved_at
     }
 
     attendance_status {
@@ -182,8 +184,10 @@ Tracks time-off applications, reasons, and approval workflow status.
 | `user_id` | `uuid` | `NULLABLE`, `REFERENCES auth.users(id)` | Requesting employee |
 | `leave_type` | `text` | `NULLABLE` | Leave type (`sick`, `paid`, `unpaid`) |
 | `reason` | `text` | `NOT NULL` | Description / reason for leave |
-| `approved` | `text` | `NULLABLE`, `DEFAULT 'Waiting for approval'` | Approval status string |
+| `approval_status` | `text` | `NOT NULL`, `DEFAULT 'Waiting for approval'` | Workflow status (`Waiting for approval`, `Approved`, `Rejected`) |
+| `uploads` | `text` | `NULLABLE` | Path/URL to attached document in `uploads` storage bucket |
 | `created_at` | `timestamptz` | `DEFAULT now()` | Request timestamp |
+| `approved_at` | `timestamptz` | `NULLABLE` | Timestamp when leave was approved |
 
 ---
 
@@ -236,5 +240,14 @@ Atomically approves a pending leave request and updates the employee's leave bal
 **Behavior:**
 1. Locks the corresponding `leave_log` row.
 2. Fails if the request is already 'Approved' or not found.
-3. Updates `leave_log.approved` to `'Approved'`.
+3. Updates `leave_log.approval_status` to `'Approved'` and sets `leave_log.approved_at` to `now()`.
 4. Deducts the `p_duration` from the corresponding `leave_balance` column (`sick_leave`, `paid_leave`, or `unpaid_leave`) based on the `leave_type`.
+
+---
+
+## 4. Storage Buckets (`storage.buckets`)
+
+| Bucket ID | Access Level | Description |
+| :--- | :--- | :--- |
+| `profile_image` | Private (`public: false`) | Stores employee profile avatars and profile pictures. |
+| `uploads` | Private (`public: false`) | Stores uploaded attachments (e.g. medical certificates, leave support documents). |
