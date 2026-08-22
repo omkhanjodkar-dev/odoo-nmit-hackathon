@@ -1,103 +1,73 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { storage, STORAGE_KEYS } from '../../data/storage';
-import RejectRemarksModal from '../timeoff/RejectRemarksModal';
 import {
   Users,
-  CheckCircle2,
-  UserX,
+  UserCheck,
   Plane,
-  Clock,
-  Check,
-  X,
-  ArrowRight,
-  TrendingUp,
-  Building,
-  ShieldCheck,
   AlertCircle,
+  Clock,
+  ArrowRight,
+  CheckCircle2,
+  XCircle,
+  Plus,
+  Shield,
+  TrendingUp,
+  FileCheck
 } from 'lucide-react';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [currentUser] = useState(() => storage.getCurrentUser());
   const [employees, setEmployees] = useState(() => storage.getEmployees());
   const [attendance, setAttendance] = useState(() => storage.getAttendance());
   const [leaveRequests, setLeaveRequests] = useState(() => storage.getLeaveRequests());
-  const [rejectModalState, setRejectModalState] = useState({ isOpen: false, request: null });
 
   useEffect(() => {
-    const unsubEmp = storage.subscribe(STORAGE_KEYS.EMPLOYEES, (e) => e && setEmployees(e));
+    const unsubEmps = storage.subscribe(STORAGE_KEYS.EMPLOYEES, (e) => e && setEmployees(e));
     const unsubAtt = storage.subscribe(STORAGE_KEYS.ATTENDANCE, (a) => a && setAttendance(a));
-    const unsubReq = storage.subscribe(STORAGE_KEYS.LEAVE_REQUESTS, (r) => r && setLeaveRequests(r));
+    const unsubLeaves = storage.subscribe(STORAGE_KEYS.LEAVE_REQUESTS, (l) => l && setLeaveRequests(l));
 
     return () => {
-      unsubEmp();
+      unsubEmps();
       unsubAtt();
-      unsubReq();
+      unsubLeaves();
     };
   }, []);
 
-  // Compute Metrics for Today
-  const totalEmployeesCount = employees.length;
-  const presentTodayCount = employees.filter((e) => e.status === 'present').length;
-  const onLeaveTodayCount = employees.filter((e) => e.status === 'on_leave').length;
-  const absentTodayCount = employees.filter((e) => e.status === 'absent').length;
-  const pendingLeaves = leaveRequests.filter((r) => r.status === 'PENDING');
+  // Compute live headcount & attendance stats
+  const totalEmployees = employees.length;
+  const presentToday = employees.filter((e) => e.status === 'present' || e.attendance_status === 'PRESENT').length;
+  const onLeaveToday = employees.filter((e) => e.status === 'on_leave' || e.attendance_status === 'LEAVE').length;
+  const absentToday = Math.max(0, totalEmployees - (presentToday + onLeaveToday));
 
-  // Approve Handler
+  const pendingRequests = useMemo(() => {
+    return leaveRequests.filter((r) => r.status === 'PENDING');
+  }, [leaveRequests]);
+
   const handleApprove = (requestId) => {
-    storage.update(STORAGE_KEYS.LEAVE_REQUESTS, (requests = []) => {
-      const targetReq = requests.find((r) => r.id === requestId);
-      if (!targetReq) return requests;
-
-      // Update Leave Balances
-      storage.update(STORAGE_KEYS.LEAVE_BALANCES, (balances = {}) => {
-        const empBal = balances[targetReq.employeeId];
-        if (!empBal) return balances;
-        const updated = { ...balances };
-        if (targetReq.leaveType === 'Paid Time Off') {
-          updated[targetReq.employeeId].paidLeave.used += targetReq.totalDays;
-          updated[targetReq.employeeId].paidLeave.available = Math.max(
-            0,
-            updated[targetReq.employeeId].paidLeave.available - targetReq.totalDays
-          );
-        } else if (targetReq.leaveType === 'Sick Time Off') {
-          updated[targetReq.employeeId].sickLeave.used += targetReq.totalDays;
-          updated[targetReq.employeeId].sickLeave.available = Math.max(
-            0,
-            updated[targetReq.employeeId].sickLeave.available - targetReq.totalDays
-          );
-        }
-        return updated;
-      });
-
-      return requests.map((r) =>
+    storage.update(STORAGE_KEYS.LEAVE_REQUESTS, (requests = []) =>
+      requests.map((r) =>
         r.id === requestId
           ? {
               ...r,
               status: 'APPROVED',
-              reviewedBy: currentUser?.id,
-              reviewedByName: currentUser?.name,
               reviewedAt: new Date().toISOString(),
-              adminRemarks: 'Approved by Administrator.',
+              adminRemarks: 'Approved via Admin Quick Dashboard Action.',
             }
           : r
-      );
-    });
+      )
+    );
   };
 
-  // Reject Handler
-  const handleConfirmReject = (requestId, remarks) => {
+  const handleReject = (requestId) => {
     storage.update(STORAGE_KEYS.LEAVE_REQUESTS, (requests = []) =>
       requests.map((r) =>
         r.id === requestId
           ? {
               ...r,
               status: 'REJECTED',
-              reviewedBy: currentUser?.id,
-              reviewedByName: currentUser?.name,
               reviewedAt: new Date().toISOString(),
-              adminRemarks: remarks,
+              adminRemarks: 'Rejected by Administrator via Quick Dashboard Action.',
             }
           : r
       )
@@ -105,163 +75,168 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-gray-900 via-purple-950 to-purple-900 rounded-2xl p-6 sm:p-8 text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-6 pb-12 animate-fadeIn">
+      {/* Welcome Banner */}
+      <div className="bg-gradient-to-r from-[#714B67] to-[#5a3b52] rounded-3xl p-6 sm:p-8 text-white shadow-lg shadow-purple-900/10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-500/30 text-purple-200 border border-purple-400/30">
-              HR Administration & Executive Dashboard
-            </span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-xs font-bold text-purple-100 mb-2 border border-white/20">
+            <Shield className="w-3.5 h-3.5" />
+            <span>HR Administration Portal</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Organization Overview
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            Organization Workplace Overview
           </h1>
-          <p className="text-sm text-gray-300 mt-1 max-w-xl">
-            Real-time workforce attendance tracking, pending leave approval queues, and staff directory status.
+          <p className="text-purple-200/90 text-sm mt-1 max-w-xl">
+            Real-time workforce attendance, leave approvals queue, and company-wide compensation metrics.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={() => navigate('/attendance')}
-            className="px-4 py-2 text-xs font-bold rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors"
+            onClick={() => navigate('/employees')}
+            className="px-4 py-2.5 rounded-xl bg-white text-[#714B67] font-bold text-xs shadow-sm hover:bg-purple-50 transition-all flex items-center gap-2"
           >
-            Attendance Grid
+            <Users className="w-4 h-4" />
+            <span>Employees Directory</span>
           </button>
           <button
-            onClick={() => navigate('/time-off')}
-            className="px-4 py-2 text-xs font-bold rounded-lg bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition-colors"
+            onClick={() => navigate('/payroll')}
+            className="px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs border border-white/20 transition-all flex items-center gap-2"
           >
-            Leave Queue ({pendingLeaves.length})
+            <TrendingUp className="w-4 h-4" />
+            <span>Payroll Structure</span>
           </button>
         </div>
       </div>
 
-      {/* KPI Metric Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Employees */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between hover:shadow-md transition-shadow">
-          <div>
-            <p className="text-xs font-semibold uppercase text-gray-500">Total Staff</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{totalEmployeesCount}</p>
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Workforce</span>
+            <div className="w-9 h-9 rounded-xl bg-purple-50 text-[#714B67] flex items-center justify-center">
+              <Users className="w-5 h-5" />
+            </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-700">
-            <Users className="w-5 h-5" />
+          <p className="text-3xl font-extrabold text-slate-900 mt-2">{totalEmployees}</p>
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
+            <span className="font-semibold text-emerald-600">100%</span> active headcount
           </div>
         </div>
 
         {/* Present Today */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between hover:shadow-md transition-shadow">
-          <div>
-            <p className="text-xs font-semibold uppercase text-gray-500">Present Today</p>
-            <p className="text-2xl font-bold text-emerald-600 mt-1">{presentTodayCount}</p>
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Present Today</span>
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <UserCheck className="w-5 h-5" />
+            </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-            <CheckCircle2 className="w-5 h-5" />
+          <p className="text-3xl font-extrabold text-emerald-600 mt-2">{presentToday}</p>
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
+            <span>🟢 In office / Active clock</span>
           </div>
         </div>
 
-        {/* On Leave */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between hover:shadow-md transition-shadow">
-          <div>
-            <p className="text-xs font-semibold uppercase text-gray-500">On Leave</p>
-            <p className="text-2xl font-bold text-sky-600 mt-1">{onLeaveTodayCount}</p>
+        {/* On Approved Leave */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">On Leave</span>
+            <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+              <Plane className="w-5 h-5" />
+            </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center text-sky-600">
-            <Plane className="w-5 h-5" />
+          <p className="text-3xl font-extrabold text-sky-600 mt-2">{onLeaveToday}</p>
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
+            <span>✈️ Approved time-off</span>
           </div>
         </div>
 
         {/* Absent */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between hover:shadow-md transition-shadow">
-          <div>
-            <p className="text-xs font-semibold uppercase text-gray-500">Absent</p>
-            <p className="text-2xl font-bold text-amber-600 mt-1">{absentTodayCount}</p>
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Absent Today</span>
+            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+              <AlertCircle className="w-5 h-5" />
+            </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
-            <UserX className="w-5 h-5" />
-          </div>
-        </div>
-
-        {/* Pending Approvals */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between hover:shadow-md transition-shadow col-span-2 sm:col-span-1">
-          <div>
-            <p className="text-xs font-semibold uppercase text-gray-500">Approvals</p>
-            <p className="text-2xl font-bold text-purple-700 mt-1">{pendingLeaves.length}</p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-800">
-            <Clock className="w-5 h-5" />
+          <p className="text-3xl font-extrabold text-amber-600 mt-2">{absentToday}</p>
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
+            <span>🟡 No punch logged</span>
           </div>
         </div>
       </div>
 
-      {/* Grid: Pending Approvals Queue & Real-time Attendance Feed */}
+      {/* Main Content Grid: Pending Approvals & Live Punch Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Pending Approvals Queue (2 cols) */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-purple-600"></div>
-              <h3 className="font-bold text-gray-900 text-base">Pending Leave Approvals Queue</h3>
+        {/* Left Column: Pending Time Off Requests */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                <FileCheck className="w-5 h-5 text-[#714B67]" />
+                Pending Leave Applications
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">Require administrator review and balance allocation</p>
             </div>
             <button
               onClick={() => navigate('/time-off')}
-              className="text-xs font-semibold text-purple-700 hover:text-purple-900 flex items-center gap-1"
+              className="text-xs font-bold text-[#714B67] hover:underline flex items-center gap-1"
             >
-              <span>Manage All ({pendingLeaves.length})</span>
+              <span>View All</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          {pendingLeaves.length === 0 ? (
-            <div className="py-10 text-center text-gray-400">
-              <CheckCircle2 className="w-10 h-10 mx-auto mb-2 text-emerald-400 stroke-1" />
-              <p className="font-semibold text-gray-600">All caught up!</p>
-              <p className="text-xs text-gray-400 mt-0.5">No pending time-off requests require your review.</p>
+          {pendingRequests.length === 0 ? (
+            <div className="py-10 text-center text-slate-400 text-xs">
+              <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
+              <p className="font-semibold text-slate-600">All leave requests reviewed!</p>
+              <p className="text-slate-400 mt-0.5">No pending applications awaiting action.</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
-              {pendingLeaves.map((req) => (
-                <div key={req.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-start gap-3">
+            <div className="space-y-3">
+              {pendingRequests.map((req) => (
+                <div
+                  key={req.id}
+                  className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-100/70 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
                     <img
                       src={req.employeeAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
                       alt={req.employeeName}
-                      className="w-10 h-10 rounded-full object-cover border border-gray-200 shrink-0"
+                      className="w-10 h-10 rounded-xl object-cover border border-slate-200"
                     />
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="font-bold text-gray-900 text-sm">{req.employeeName}</p>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-100 text-purple-800">
+                        <span className="text-sm font-bold text-slate-900">{req.employeeName}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-[#714B67]">
                           {req.leaveType}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {req.startDate} to {req.endDate} &bull;{' '}
-                        <span className="font-semibold text-purple-700">{req.totalDays} Days</span>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {req.startDate} to {req.endDate} ({req.totalDays} {req.totalDays === 1 ? 'day' : 'days'})
                       </p>
                       {req.reason && (
-                        <p className="text-xs text-gray-600 mt-1 italic">&ldquo;{req.reason}&rdquo;</p>
+                        <p className="text-xs text-slate-600 italic mt-1 line-clamp-1">"{req.reason}"</p>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 self-end sm:self-center">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => handleApprove(req.id)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-colors"
-                      title="Approve"
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5"
                     >
-                      <Check className="w-3.5 h-3.5" />
+                      <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>Approve</span>
                     </button>
                     <button
-                      onClick={() => setRejectModalState({ isOpen: true, request: req })}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-colors"
-                      title="Reject"
+                      onClick={() => handleReject(req.id)}
+                      className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors flex items-center gap-1.5"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <XCircle className="w-3.5 h-3.5" />
                       <span>Reject</span>
                     </button>
                   </div>
@@ -271,74 +246,67 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* Live Employee Status Feed (1 col) */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+        {/* Right Column: Today's Punch Feed */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-              <Users className="w-4 h-4 text-purple-700" />
-              <span>Today's Staff Status</span>
-            </h3>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
-              {presentTodayCount}/{totalEmployeesCount} Present
-            </span>
+            <h2 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+              <Clock className="w-5 h-5 text-[#714B67]" />
+              Today's Punch Feed
+            </h2>
+            <button
+              onClick={() => navigate('/attendance')}
+              className="text-xs font-bold text-[#714B67] hover:underline"
+            >
+              Manage Logs
+            </button>
           </div>
 
-          <div className="divide-y divide-gray-100 max-h-[380px] overflow-y-auto pr-1">
-            {employees.map((emp) => (
-              <div key={emp.id} className="py-2.5 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2.5">
-                  <div className="relative">
-                    <img
-                      src={emp.avatar}
-                      alt={emp.name}
-                      className="w-8 h-8 rounded-full object-cover border border-gray-200"
-                    />
-                    <span
-                      className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${
-                        emp.status === 'present'
-                          ? 'bg-emerald-500'
-                          : emp.status === 'on_leave'
-                          ? 'bg-sky-500'
-                          : 'bg-amber-500'
-                      }`}
-                    />
-                  </div>
-                  <div>
-                    <p className="font-bold text-gray-900 leading-none">{emp.name}</p>
-                    <p className="text-[10px] text-gray-500 mt-1">{emp.department}</p>
-                  </div>
-                </div>
+          <div className="space-y-2.5">
+            {employees.map((emp) => {
+              const isPresent = emp.status === 'present' || emp.attendance_status === 'PRESENT';
+              const isOnLeave = emp.status === 'on_leave' || emp.attendance_status === 'LEAVE';
 
-                <div>
+              return (
+                <div
+                  key={emp.id}
+                  className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="relative">
+                      <img
+                        src={emp.avatar}
+                        alt={emp.name}
+                        className="w-8 h-8 rounded-lg object-cover border border-slate-200"
+                      />
+                      <span
+                        className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
+                          isPresent ? 'bg-emerald-500' : isOnLeave ? 'bg-sky-500' : 'bg-amber-500'
+                        }`}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-800 truncate">{emp.name}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{emp.department}</p>
+                    </div>
+                  </div>
+
                   <span
-                    className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      emp.status === 'present'
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : emp.status === 'on_leave'
-                        ? 'bg-sky-50 text-sky-700'
-                        : 'bg-amber-50 text-amber-700'
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      isPresent
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : isOnLeave
+                        ? 'bg-sky-50 text-sky-700 border border-sky-200'
+                        : 'bg-amber-50 text-amber-700 border border-amber-200'
                     }`}
                   >
-                    {emp.status === 'present'
-                      ? '🟢 Present'
-                      : emp.status === 'on_leave'
-                      ? '✈️ On Leave'
-                      : '🟡 Absent'}
+                    {isPresent ? 'Present (09:00)' : isOnLeave ? 'On Leave' : 'Absent'}
                   </span>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
-
-      {/* Reject Remarks Modal */}
-      <RejectRemarksModal
-        isOpen={rejectModalState.isOpen}
-        request={rejectModalState.request}
-        onClose={() => setRejectModalState({ isOpen: false, request: null })}
-        onConfirmReject={handleConfirmReject}
-      />
     </div>
   );
 }

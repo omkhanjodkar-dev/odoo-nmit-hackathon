@@ -1,98 +1,78 @@
 import React, { useState } from 'react';
-import { X, AlertTriangle, MessageSquare } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 
-export default function RejectRemarksModal({
-  isOpen,
-  onClose,
-  request = null,
-  onConfirmReject,
-}) {
+export default function RejectRemarksModal({ isOpen, request, onClose, onConfirmReject }) {
   const [remarks, setRemarks] = useState('');
   const [error, setError] = useState('');
 
   if (!isOpen || !request) return null;
 
-  const handleConfirm = (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (!remarks.trim()) {
-      setError('Please provide a mandatory rejection remark explaining the decision.');
+      setError('Please enter a rejection reason.');
       return;
     }
-    setError('');
     onConfirmReject(request.id, remarks.trim());
     setRemarks('');
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-rose-50/60">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center text-rose-700">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-gray-900 leading-none">Reject Time Off Request</h3>
-              <p className="text-xs text-gray-500 mt-1">Provide required rejection reason</p>
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 p-6 relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+            <AlertCircle className="w-5 h-5" />
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 rounded-lg p-1.5 hover:bg-gray-100 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div>
+            <h2 className="text-base font-extrabold text-slate-900 tracking-tight">Reject Leave Request</h2>
+            <p className="text-xs text-slate-500">Provide rejection remarks for {request.employeeName}</p>
+          </div>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleConfirm} className="p-6 space-y-4">
-          {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-lg">
-              {error}
-            </div>
-          )}
+        {error && (
+          <p className="text-xs font-semibold text-rose-600 mb-3">{error}</p>
+        )}
 
-          {/* Target Request Summary */}
-          <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs space-y-1">
-            <p className="font-bold text-gray-900">{request.employeeName} ({request.department})</p>
-            <p className="text-gray-600">
-              <span className="font-semibold">{request.leaveType}</span> &bull; {request.totalDays} Days ({request.startDate} to {request.endDate})
-            </p>
-            {request.reason && (
-              <p className="text-gray-500 italic mt-1">&ldquo;{request.reason}&rdquo;</p>
-            )}
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          <div className="p-3 bg-slate-50 rounded-xl text-xs space-y-1">
+            <p><strong className="text-slate-700">Type:</strong> {request.leaveType}</p>
+            <p><strong className="text-slate-700">Dates:</strong> {request.startDate} to {request.endDate} ({request.totalDays} Days)</p>
           </div>
 
-          {/* Mandatory Remarks Textarea */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5 flex items-center gap-1.5">
-              <MessageSquare className="w-3.5 h-3.5 text-rose-600" />
-              <span>Administrative Rejection Remarks <span className="text-rose-500">*</span></span>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+              Rejection Remarks (Required)
             </label>
             <textarea
-              rows="3"
+              rows={3}
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
-              placeholder="E.g. Conflict with critical project sprint launch, insufficient notice..."
-              className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent font-medium"
+              placeholder="e.g. Critical deployment window scheduled; please reschedule."
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40"
               required
             />
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+          <div className="pt-2 flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm transition-all"
             >
               Confirm Rejection
             </button>

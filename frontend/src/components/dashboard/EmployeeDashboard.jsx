@@ -1,295 +1,240 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { storage, STORAGE_KEYS } from '../../data/storage';
 import SystrayAttendance from '../attendance/SystrayAttendance';
 import {
-  Calendar,
   Clock,
   Plane,
-  CreditCard,
-  User,
-  AlertCircle,
-  CheckCircle2,
-  Bell,
+  Calendar,
+  DollarSign,
   ArrowRight,
-  TrendingUp,
-  FileCheck2,
+  Plus,
+  CheckCircle2,
+  AlertCircle,
+  Briefcase,
+  Gift
 } from 'lucide-react';
 
 export default function EmployeeDashboard() {
+  const { activeUser } = useAuth();
   const navigate = useNavigate();
-  const [currentUser, setCurrentUser] = useState(() => storage.getCurrentUser());
-  const [leaveBalances, setLeaveBalances] = useState(() => storage.getLeaveBalances());
   const [attendance, setAttendance] = useState(() => storage.getAttendance());
-  const [leaveRequests, setLeaveRequests] = useState(() => storage.getLeaveRequests());
+  const [leaveBalances, setLeaveBalances] = useState(() => storage.getLeaveBalances());
 
   useEffect(() => {
-    const unsubUser = storage.subscribe(STORAGE_KEYS.CURRENT_USER, (user) => {
-      if (user) setCurrentUser(user);
-    });
-    const unsubBal = storage.subscribe(STORAGE_KEYS.LEAVE_BALANCES, (bal) => {
-      if (bal) setLeaveBalances(bal);
-    });
-    const unsubAtt = storage.subscribe(STORAGE_KEYS.ATTENDANCE, (att) => {
-      if (att) setAttendance(att);
-    });
-    const unsubReq = storage.subscribe(STORAGE_KEYS.LEAVE_REQUESTS, (req) => {
-      if (req) setLeaveRequests(req);
-    });
+    const unsubAtt = storage.subscribe(STORAGE_KEYS.ATTENDANCE, (a) => a && setAttendance(a));
+    const unsubLeaves = storage.subscribe(STORAGE_KEYS.LEAVE_BALANCES, (l) => l && setLeaveBalances(l));
 
     return () => {
-      unsubUser();
-      unsubBal();
       unsubAtt();
-      unsubReq();
+      unsubLeaves();
     };
   }, []);
 
-  const empBalances = leaveBalances[currentUser?.id] || {
-    paidLeave: { total: 24, used: 4, available: 20 },
-    sickLeave: { total: 12, used: 5, available: 7 },
-  };
+  const userBalances = useMemo(() => {
+    return (
+      leaveBalances[activeUser?.id] || {
+        paidLeave: { total: 24, used: 4, available: 20 },
+        sickLeave: { total: 12, used: 5, available: 7 },
+        unpaidLeave: { total: 0, used: 1, available: 0 },
+      }
+    );
+  }, [leaveBalances, activeUser?.id]);
 
-  const myRecentAttendance = attendance
-    .filter((r) => r.employeeId === currentUser?.id)
-    .slice(0, 4);
+  const userRecentAttendance = useMemo(() => {
+    return attendance
+      .filter((r) => r.employeeId === activeUser?.id)
+      .slice(0, 5);
+  }, [attendance, activeUser?.id]);
 
-  const myRecentLeaves = leaveRequests
-    .filter((r) => r.employeeId === currentUser?.id)
-    .slice(0, 3);
+  const upcomingHolidays = [
+    { name: 'Diwali / Deepawali', date: '01 Nov 2025', day: 'Saturday' },
+    { name: 'Guru Nanak Jayanti', date: '15 Nov 2025', day: 'Saturday' },
+    { name: 'Christmas Day', date: '25 Dec 2025', day: 'Thursday' },
+  ];
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-12 animate-fadeIn">
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-purple-800 via-purple-700 to-indigo-800 rounded-2xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <img
-              src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
-              alt={currentUser?.name}
-              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-white/40 shadow-md"
-            />
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-sm">
-                  {currentUser?.employeeId}
-                </span>
-                <span className="text-xs font-semibold text-purple-200">
-                  {currentUser?.department}
-                </span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold mt-1 tracking-tight">
-                Welcome back, {currentUser?.name}!
-              </h1>
-              <p className="text-sm text-purple-100 mt-1 max-w-lg">
-                {currentUser?.designation} &bull; {currentUser?.company} ({currentUser?.location})
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-md px-5 py-3 rounded-xl border border-white/20 text-right">
-            <p className="text-xs font-semibold uppercase tracking-wider text-purple-200">Today's Date</p>
-            <p className="text-lg font-bold font-mono">
-              {new Date().toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+      <div className="bg-gradient-to-r from-[#714B67] to-[#5a3b52] rounded-3xl p-6 sm:p-8 text-white shadow-lg shadow-purple-900/10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <img
+            src={activeUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+            alt={activeUser?.name}
+            className="w-16 h-16 rounded-2xl object-cover border-2 border-white/40 shadow-inner"
+          />
+          <div>
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-white/20 text-purple-100 uppercase tracking-wider">
+              {activeUser?.department || 'Engineering'}
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mt-1">
+              Welcome back, {activeUser?.firstName || activeUser?.name}!
+            </h1>
+            <p className="text-purple-200 text-xs sm:text-sm mt-0.5">
+              {activeUser?.designation} • Emp ID: <span className="font-mono font-bold text-white">{activeUser?.employeeId}</span>
             </p>
           </div>
         </div>
 
-        {/* Ambient Decorative Background Circles */}
-        <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-white/5 pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-purple-500/20 pointer-events-none" />
-      </div>
-
-      {/* Grid: Live Attendance Systray Clock & Leave Balance Glance */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Live Attendance Clock Card */}
-        <div className="lg:col-span-2">
-          <SystrayAttendance />
-        </div>
-
-        {/* Leave Balances Summary Tile */}
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
-                <Plane className="w-4 h-4 text-purple-600" />
-                <span>Leave Balance Summary</span>
-              </h3>
-              <button
-                onClick={() => navigate('/time-off')}
-                className="text-xs font-semibold text-purple-700 hover:text-purple-900 flex items-center gap-0.5"
-              >
-                <span>View All</span>
-                <ArrowRight className="w-3 h-3" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-2.5 bg-purple-50/60 rounded-lg">
-                <div>
-                  <p className="text-xs font-bold text-purple-900">Paid Time Off</p>
-                  <p className="text-[10px] text-gray-500">{empBalances.paidLeave.used} of {empBalances.paidLeave.total} used</p>
-                </div>
-                <span className="text-lg font-extrabold text-purple-700">
-                  {empBalances.paidLeave.available} <span className="text-xs font-normal">days left</span>
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between p-2.5 bg-rose-50/60 rounded-lg">
-                <div>
-                  <p className="text-xs font-bold text-rose-900">Sick Time Off</p>
-                  <p className="text-[10px] text-gray-500">{empBalances.sickLeave.used} of {empBalances.sickLeave.total} used</p>
-                </div>
-                <span className="text-lg font-extrabold text-rose-600">
-                  {empBalances.sickLeave.available} <span className="text-xs font-normal">days left</span>
-                </span>
-              </div>
-            </div>
-          </div>
-
+        <div className="flex items-center gap-2.5">
           <button
             onClick={() => navigate('/time-off')}
-            className="w-full mt-3 py-2 text-xs font-bold text-center text-purple-700 hover:bg-purple-50 rounded-lg border border-purple-200 transition-colors"
+            className="px-4 py-2.5 rounded-xl bg-white text-[#714B67] font-bold text-xs shadow-sm hover:bg-purple-50 transition-all flex items-center gap-2"
           >
-            + Request Time Off
+            <Plus className="w-4 h-4" />
+            <span>Apply Time Off</span>
           </button>
-        </div>
-      </div>
-
-      {/* Quick Action Navigation Cards */}
-      <div>
-        <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">
-          Quick Workflows
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <button
-            onClick={() => navigate('/attendance')}
-            className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-purple-500 hover:shadow-md transition-all text-left group"
-          >
-            <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <Clock className="w-5 h-5" />
-            </div>
-            <h3 className="font-bold text-gray-900 text-sm">Attendance Logs</h3>
-            <p className="text-xs text-gray-500 mt-0.5">View hours & calendar</p>
-          </button>
-
-          <button
-            onClick={() => navigate('/time-off')}
-            className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-purple-500 hover:shadow-md transition-all text-left group"
-          >
-            <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <Plane className="w-5 h-5" />
-            </div>
-            <h3 className="font-bold text-gray-900 text-sm">Time Off Requests</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Apply & track leave status</p>
-          </button>
-
-          <button
-            onClick={() => navigate('/payroll')}
-            className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-purple-500 hover:shadow-md transition-all text-left group"
-          >
-            <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <CreditCard className="w-5 h-5" />
-            </div>
-            <h3 className="font-bold text-gray-900 text-sm">Salary Breakdown</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Gross, PF & net wage</p>
-          </button>
-
           <button
             onClick={() => navigate('/profile')}
-            className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-purple-500 hover:shadow-md transition-all text-left group"
+            className="px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs border border-white/20 transition-all"
           >
-            <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <User className="w-5 h-5" />
-            </div>
-            <h3 className="font-bold text-gray-900 text-sm">My Profile</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Resume, skills & statutory</p>
+            <span>My Profile</span>
           </button>
         </div>
       </div>
 
-      {/* Feeds: Recent Attendance & Leave Status Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Attendance Activity Feed */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+      {/* Live Punch Clock Widget */}
+      <SystrayAttendance />
+
+      {/* Leave Quotas & Attendance Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Paid Leave Balance */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Paid Time Off</span>
+            <div className="w-8 h-8 rounded-xl bg-purple-50 text-[#714B67] flex items-center justify-center">
+              <Plane className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-3xl font-extrabold text-slate-900">{userBalances.paidLeave.available}</span>
+            <span className="text-xs font-bold text-slate-400">/ {userBalances.paidLeave.total} Days</span>
+          </div>
+          <p className="text-xs text-emerald-600 font-semibold mt-1">Available for vacation</p>
+        </div>
+
+        {/* Sick Leave Balance */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Sick Time Off</span>
+            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+              <AlertCircle className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-3xl font-extrabold text-slate-900">{userBalances.sickLeave.available}</span>
+            <span className="text-xs font-bold text-slate-400">/ {userBalances.sickLeave.total} Days</span>
+          </div>
+          <p className="text-xs text-slate-500 font-medium mt-1">{userBalances.sickLeave.used} days used this year</p>
+        </div>
+
+        {/* Days Present this Month */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Days Present</span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-3xl font-extrabold text-emerald-600">20</span>
+            <span className="text-xs font-bold text-slate-400">/ 22 Days</span>
+          </div>
+          <p className="text-xs text-slate-500 font-medium mt-1">October 2025 cycle</p>
+        </div>
+
+        {/* Base Monthly Salary */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Base Salary</span>
+            <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+              <DollarSign className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-slate-900">
+              ₹{(activeUser?.salary_structure?.month_wage || 50000).toLocaleString('en-IN')}
+            </span>
+          </div>
+          <p className="text-xs text-purple-700 font-semibold mt-1">View breakdown in Profile</p>
+        </div>
+      </div>
+
+      {/* Lower Row: Recent Attendance & Upcoming Holidays */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Attendance Logs */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
-              <Clock className="w-4 h-4 text-purple-700" />
-              <span>Recent Attendance Punches</span>
-            </h3>
+            <div>
+              <h2 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-[#714B67]" />
+                Recent Daily Clockings
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">Your past work session duration and punch logs</p>
+            </div>
             <button
               onClick={() => navigate('/attendance')}
-              className="text-xs font-semibold text-purple-700 hover:underline"
+              className="text-xs font-bold text-[#714B67] hover:underline flex items-center gap-1"
             >
-              Full Log
+              <span>Full Attendance Logs</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="divide-y divide-gray-100">
-            {myRecentAttendance.map((rec) => (
-              <div key={rec.id} className="py-3 flex items-center justify-between text-xs">
-                <div>
-                  <p className="font-bold text-gray-900">{rec.date}</p>
-                  <p className="text-gray-500 font-mono mt-0.5">
-                    In: {rec.checkIn} &bull; Out: {rec.checkOut}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="font-mono font-bold text-gray-900 block">{rec.workHours} hrs</span>
-                  <span
-                    className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold mt-0.5 ${
-                      rec.status === 'PRESENT'
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : rec.status === 'HALF_DAY'
-                        ? 'bg-orange-50 text-orange-700'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    {rec.status}
-                  </span>
-                </div>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider border-y border-slate-100">
+                <tr>
+                  <th className="py-2.5 px-3">Date</th>
+                  <th className="py-2.5 px-3">Check In</th>
+                  <th className="py-2.5 px-3">Check Out</th>
+                  <th className="py-2.5 px-3">Work Hours</th>
+                  <th className="py-2.5 px-3">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {userRecentAttendance.map((rec) => (
+                  <tr key={rec.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-3 px-3 font-semibold text-slate-900">{rec.date}</td>
+                    <td className="py-3 px-3 text-slate-600">{rec.checkIn || '-'}</td>
+                    <td className="py-3 px-3 text-slate-600">{rec.checkOut || '-'}</td>
+                    <td className="py-3 px-3 font-mono font-bold text-slate-800">{rec.workHours}</td>
+                    <td className="py-3 px-3">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {rec.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Leave Requests Feed */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+        {/* Upcoming Holidays */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
-              <Plane className="w-4 h-4 text-purple-700" />
-              <span>Recent Time Off Applications</span>
-            </h3>
-            <button
-              onClick={() => navigate('/time-off')}
-              className="text-xs font-semibold text-purple-700 hover:underline"
-            >
-              All Requests
-            </button>
+            <h2 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+              <Gift className="w-5 h-5 text-[#714B67]" />
+              Upcoming Holidays
+            </h2>
+            <span className="text-[11px] font-bold text-slate-400">2025</span>
           </div>
 
-          <div className="divide-y divide-gray-100">
-            {myRecentLeaves.map((lreq) => (
-              <div key={lreq.id} className="py-3 flex items-center justify-between text-xs">
+          <div className="space-y-3">
+            {upcomingHolidays.map((holiday, idx) => (
+              <div
+                key={idx}
+                className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between"
+              >
                 <div>
-                  <p className="font-bold text-gray-900">{lreq.leaveType}</p>
-                  <p className="text-gray-500 mt-0.5">
-                    {lreq.startDate} to {lreq.endDate} ({lreq.totalDays} Days)
-                  </p>
+                  <p className="text-xs font-bold text-slate-800">{holiday.name}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">{holiday.day}</p>
                 </div>
-                <div className="text-right">
-                  <span
-                    className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      lreq.status === 'APPROVED'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : lreq.status === 'REJECTED'
-                        ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                        : 'bg-amber-50 text-amber-700 border border-amber-200'
-                    }`}
-                  >
-                    {lreq.status}
-                  </span>
-                </div>
+                <span className="text-xs font-bold text-[#714B67] bg-purple-50 px-2.5 py-1 rounded-lg">
+                  {holiday.date}
+                </span>
               </div>
             ))}
           </div>
