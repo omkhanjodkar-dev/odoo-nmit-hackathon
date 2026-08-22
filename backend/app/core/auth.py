@@ -12,7 +12,8 @@ security = HTTPBearer(auto_error=False)
 class AuthenticatedUser(BaseModel):
     id: str
     email: Optional[str] = None
-    role: Optional[str] = None
+    role: str = "EMPLOYEE"
+    employee_id: Optional[str] = None
     app_metadata: dict = {}
     user_metadata: dict = {}
 
@@ -66,12 +67,17 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    user_metadata = payload.get("user_metadata", {})
+    role = user_metadata.get("role") or payload.get("role") or "EMPLOYEE"
+    employee_id = user_metadata.get("employee_id")
+
     return AuthenticatedUser(
         id=user_id,
         email=payload.get("email"),
-        role=payload.get("user_metadata", {}).get("role") or payload.get("role"),
+        role=role,
+        employee_id=employee_id,
         app_metadata=payload.get("app_metadata", {}),
-        user_metadata=payload.get("user_metadata", {}),
+        user_metadata=user_metadata,
     )
 
 
@@ -84,3 +90,17 @@ async def get_optional_user(
         return await get_current_user(credentials)
     except HTTPException:
         return None
+
+
+def require_role(required_role: str):
+    """
+    Dependency generator to restrict endpoint to specific user role.
+    """
+    async def role_checker(current_user: AuthenticatedUser = Depends(get_current_user)) -> AuthenticatedUser:
+        if current_user.role != required_role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Requires role '{required_role}', but current role is '{current_user.role}'."
+            )
+        return current_user
+    return role_checker
