@@ -179,3 +179,20 @@ Stores device tokens for push notifications.
 | `user_id` | `uuid` | `NULLABLE`, `REFERENCES auth.users(id)` | Target user |
 | `fcm_token` | `text` | `NOT NULL` | Firebase Cloud Messaging token |
 | `created_at` | `timestamptz` | `DEFAULT now()` | Token registration timestamp |
+
+---
+
+## 3. Database Functions
+
+### 3.1 `approve_leave_request(p_leave_id UUID, p_duration REAL)`
+Atomically approves a pending leave request and updates the employee's leave balance in a single transaction.
+
+**Parameters:**
+- `p_leave_id` (`UUID`): The ID of the leave request in `leave_log`.
+- `p_duration` (`REAL`): The duration of the leave (e.g., `1`, `0.5`) to deduct from the balance.
+
+**Behavior:**
+1. Locks the corresponding `leave_log` row.
+2. Fails if the request is already 'Approved' or not found.
+3. Updates `leave_log.approved` to `'Approved'`.
+4. Deducts the `p_duration` from the corresponding `leave_balance` column (`sick_leave`, `paid_leave`, or `unpaid_leave`) based on the `leave_type`.
