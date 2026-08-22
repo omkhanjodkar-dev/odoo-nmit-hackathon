@@ -1,0 +1,58 @@
+.context-switcher-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.context-switcher-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background-color: var(--bg-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 4px 12px;
+  transition: all var(--transition-normal);
+}
+
+.context-switcher-pill:hover {
+  border-color: var(--border-hover);
+  background-color: var(--bg-subtle);
+}
+
+.context-switcher-pill.active-impersonation {
+  background-color: var(--status-absent-bg);
+  border-color: var(--status-absent-border);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+}
+
+.context-icon {
+  font-size: 13px;
+}
+
+.context-select {
+  background: transparent;
+  border: none;
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+  max-width: 220px;
+}
+
+.context-reset-btn {
+  font-size: 11px;
+  font-weight: var(--font-weight-bold);
+  color: var(--status-rejected);
+  background-color: var(--status-rejected-bg);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.context-reset-btn:hover {
+  background-color: var(--status-rejected);
+  color: var(--text-inverse);
+}
