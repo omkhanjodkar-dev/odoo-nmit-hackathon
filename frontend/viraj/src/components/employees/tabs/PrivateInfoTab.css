@@ -1,0 +1,32 @@
+.private-info-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+.readonly-or-input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.font-semibold {
+  font-weight: var(--font-weight-semibold);
+}
+
+.font-mono {
+  font-family: var(--font-family-mono);
+}
+
+@media (max-width: 768px) {
+  .form-grid-3 {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+}

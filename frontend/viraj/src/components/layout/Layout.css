@@ -1,0 +1,66 @@
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-app);
+}
+
+.app-auth-wrapper {
+  min-height: 100vh;
+  width: 100%;
+}
+
+.impersonation-banner {
+  background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  padding: 8px var(--space-6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  z-index: 101;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.impersonation-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.impersonation-icon {
+  font-size: 14px;
+}
+
+.impersonation-exit-btn {
+  background-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-bold);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.impersonation-exit-btn:hover {
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
+.app-main {
+  flex: 1 1 auto;
+  padding: var(--space-6);
+}
+
+.app-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .app-main {
+    padding: var(--space-4) var(--space-3);
+  }
+}

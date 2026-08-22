@@ -1,0 +1,126 @@
+.salary-config-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.config-live-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, var(--bg-subtle) 0%, var(--bg-card) 100%);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.live-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.live-label {
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-muted);
+}
+
+.live-val {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.live-val.deduction {
+  color: var(--status-rejected);
+}
+
+.live-val.net {
+  color: var(--color-primary);
+  font-size: var(--font-size-lg);
+}
+
+.math-operator {
+  font-size: var(--font-size-base);
+  font-weight: bold;
+  color: var(--text-muted);
+}
+
+.config-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+}
+
+.config-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.config-col-title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: var(--space-2);
+}
+
+.formula-readonly-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.formula-readonly-chip strong {
+  font-family: var(--font-family-mono);
+  color: var(--text-primary);
+}
+
+.formula-readonly-chip.deduction-chip {
+  background-color: var(--status-rejected-bg);
+  border-color: var(--status-rejected-border);
+}
+
+.formula-readonly-chip.deduction-chip strong {
+  color: var(--status-rejected);
+}
+
+.config-helper-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-accent-light);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-4);
+}
+
+.callout-icon {
+  font-size: 16px;
+}
+
+.callout-text {
+  font-size: 11px;
+  color: var(--color-accent-hover);
+  line-height: var(--line-height-normal);
+}
+
+@media (max-width: 640px) {
+  .config-fields-grid {
+    grid-template-columns: 1fr;
+  }
+}

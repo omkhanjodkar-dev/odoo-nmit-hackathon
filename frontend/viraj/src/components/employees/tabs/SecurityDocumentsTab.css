@@ -1,0 +1,132 @@
+.security-docs-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.docs-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.doc-upload-inline-form {
+  margin-bottom: var(--space-5);
+}
+
+.upload-box {
+  border: 2px dashed var(--color-primary);
+  background-color: var(--color-primary-light);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.upload-box-icon {
+  font-size: 28px;
+}
+
+.upload-box-title {
+  font-family: var(--font-family-heading);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+}
+
+.doc-name-input {
+  width: 100%;
+  max-width: 400px;
+  height: 36px;
+  padding: 6px 12px;
+  font-size: var(--font-size-sm);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  outline: none;
+  background-color: var(--bg-card);
+}
+
+.doc-name-input:focus {
+  border-color: var(--color-primary);
+}
+
+.upload-btn-group {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.docs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-4);
+}
+
+.doc-item-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.doc-item-card:hover {
+  border-color: var(--border-hover);
+  background-color: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.doc-item-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.doc-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.doc-name {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.doc-item-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.doc-action-btn, .doc-delete-btn {
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-xs);
+  transition: transform var(--transition-fast);
+}
+
+.doc-action-btn:hover, .doc-delete-btn:hover {
+  transform: scale(1.15);
+}
