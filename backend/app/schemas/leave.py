@@ -13,6 +13,7 @@ class LeaveApplyRequest(BaseModel):
     leave_type: str = Field(..., description="sick | paid | unpaid")
     reason: str = Field(..., min_length=1)
     duration: float = Field(default=1.0, gt=0)
+    uploads: Optional[str] = Field(None, description="Path/URL in uploads storage bucket")
 
 
 class LeaveLogResponse(BaseModel):
@@ -20,8 +21,11 @@ class LeaveLogResponse(BaseModel):
     user_id: str
     leave_type: str
     reason: str
-    approved: str
+    approval_status: str
+    remarks: Optional[str] = None
+    uploads: Optional[str] = None
     created_at: Optional[str] = None
+    approved_at: Optional[str] = None
 
 
 class LeavePendingResponse(BaseModel):
@@ -31,7 +35,8 @@ class LeavePendingResponse(BaseModel):
     employee_id: str
     leave_type: str
     reason: str
-    approved: str
+    approval_status: str
+    uploads: Optional[str] = None
     created_at: Optional[str] = None
 
 

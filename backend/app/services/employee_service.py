@@ -76,7 +76,7 @@ class EmployeeService:
             leave_res = (
                 supabase.table("leave_log")
                 .select("user_id")
-                .eq("approved", "Approved")
+                .eq("approval_status", "Approved")
                 .gte("created_at", f"{today}T00:00:00")
                 .lte("created_at", f"{today}T23:59:59")
                 .execute()
