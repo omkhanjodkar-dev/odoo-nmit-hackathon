@@ -1,5 +1,5 @@
 import React from 'react';
-import { calculateSalaryComponents } from '../../../data/mockPayroll';
+import { calculateSalaryComponents } from '../../../utils/salary';
 import { DollarSign, ShieldAlert, Lock, CheckCircle2, Calculator } from 'lucide-react';
 
 export default function SalaryInfoTab({ employee, isEditing, onChangeField, canEditSalary }) {

@@ -25,7 +25,7 @@ export default function SignInPage() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -40,7 +40,7 @@ export default function SignInPage() {
 
     setIsLoading(true);
     try {
-      login(loginId, password, selectedRole);
+      await login(loginId, password, selectedRole);
       setIsLoading(false);
       navigate('/');
     } catch (err) {

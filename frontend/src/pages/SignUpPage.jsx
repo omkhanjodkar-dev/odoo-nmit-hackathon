@@ -13,7 +13,7 @@ export default function SignUpPage() {
     name: '',
     email: '',
     phone: '',
-    role: 'EMPLOYEE',
+    role: 'employee',
     department: 'Engineering',
     designation: 'Software Associate',
     password: '',
@@ -24,13 +24,14 @@ export default function SignUpPage() {
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [createdUserEmail, setCreatedUserEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -42,8 +43,8 @@ export default function SignUpPage() {
       setError('Please enter your work email address.');
       return;
     }
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long.');
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long.');
       return;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -51,11 +52,14 @@ export default function SignUpPage() {
       return;
     }
 
+    setIsLoading(true);
     try {
-      const user = signup(formData);
-      setCreatedUserEmail(user.email);
+      const user = await signup(formData);
+      setCreatedUserEmail(user.email || formData.email);
+      setIsLoading(false);
       setIsModalOpen(true);
     } catch (err) {
+      setIsLoading(false);
       setError(err.message || 'Failed to create account.');
     }
   };
@@ -119,8 +123,8 @@ export default function SignUpPage() {
                 onChange={handleChange}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
               >
-                <option value="EMPLOYEE">Standard Employee</option>
-                <option value="ADMIN_HR">HR Administrator</option>
+                <option value="employee">Standard Employee</option>
+                <option value="admin">HR Administrator</option>
               </select>
             </div>
           </div>

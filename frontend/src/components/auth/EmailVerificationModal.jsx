@@ -67,57 +67,20 @@ export default function EmailVerificationModal({ isOpen, email, onClose, onVerif
           <p className="text-sm font-bold text-[#714B67] mt-0.5">{email || 'your-email@odooindia.com'}</p>
         </div>
 
-        <form onSubmit={handleVerify} className="mt-6">
-          <div className="flex justify-center gap-2 sm:gap-2.5">
-            {code.map((digit, idx) => (
-              <input
-                key={idx}
-                id={`digit-${idx}`}
-                type="text"
-                maxLength={1}
-                value={digit}
-                onChange={(e) => handleInputChange(idx, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(idx, e)}
-                className="w-11 h-13 text-center text-lg font-extrabold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 focus:border-[#714B67] transition-all"
-                placeholder="•"
-              />
-            ))}
-          </div>
+        <div className="text-center mt-6">
+          <p className="text-sm font-medium text-slate-600 mb-6">
+            Please click the secure link we sent to your inbox to verify your account and activate your workspace.
+          </p>
 
-          {error && (
-            <p className="text-xs font-semibold text-rose-600 text-center mt-3 animate-fadeIn">
-              {error}
-            </p>
-          )}
-
-          <div className="mt-6 flex flex-col gap-3">
-            <button
-              type="submit"
-              disabled={isVerifying}
-              className="w-full py-2.5 px-4 rounded-xl bg-[#714B67] hover:bg-[#5a3b52] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#714B67]/50"
-            >
-              {isVerifying ? (
-                <span>Verifying security token...</span>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Verify & Proceed to Workspace</span>
-                </>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setCode(['1', '2', '3', '4', '5', '6']);
-                setError('');
-              }}
-              className="text-xs font-semibold text-[#714B67] hover:underline text-center"
-            >
-              Auto-fill Demo Code (123456)
-            </button>
-          </div>
-        </form>
+          <button
+            type="button"
+            onClick={onVerified}
+            className="w-full py-2.5 px-4 rounded-xl bg-[#714B67] hover:bg-[#5a3b52] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#714B67]/50"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            <span>I have verified my email</span>
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { storage } from '../../data/storage';
-import { calculateSalaryComponents } from '../../data/mockPayroll';
+
 import { X, UserPlus, Building2, Mail, Phone, DollarSign, Shield } from 'lucide-react';
+
+import { employeesService } from '../../services/employeesService';
 
 export default function AddEmployeeModal({ isOpen, onClose, onEmployeeAdded }) {
   const { signup } = useAuth();
@@ -19,6 +20,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onEmployeeAdded }) {
     maritalStatus: 'Single',
   });
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -27,7 +29,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onEmployeeAdded }) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -36,11 +38,21 @@ export default function AddEmployeeModal({ isOpen, onClose, onEmployeeAdded }) {
       return;
     }
 
+    setIsSubmitting(true);
     try {
-      const newEmp = signup(formData);
-      if (onEmployeeAdded) onEmployeeAdded(newEmp);
+      let created = null;
+      try {
+        created = await employeesService.onboardEmployee(formData);
+      } catch (err) {
+        console.warn('Backend onboard error, falling back to local creation:', err.message);
+        created = await signup(formData);
+      }
+
+      if (onEmployeeAdded) onEmployeeAdded(created);
+      setIsSubmitting(false);
       onClose();
     } catch (err) {
+      setIsSubmitting(false);
       setError(err.message || 'Failed to create employee record.');
     }
   };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { storage, STORAGE_KEYS } from '../data/storage';
+
+import { attendanceService } from '../services/attendanceService';
 import AttendanceMetrics from '../components/attendance/AttendanceMetrics';
 import AttendanceToolbar from '../components/attendance/AttendanceToolbar';
 import AttendanceTable from '../components/attendance/AttendanceTable';
@@ -10,7 +11,7 @@ import { Calendar } from 'lucide-react';
 
 export default function AttendancePage() {
   const { activeUser, isAdmin } = useAuth();
-  const [attendanceRecords, setAttendanceRecords] = useState(() => storage.getAttendance());
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState('2025-10');
   const [currentDateIndex, setCurrentDateIndex] = useState(22);
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,12 +19,53 @@ export default function AttendancePage() {
   const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
   const [selectedRecordToEdit, setSelectedRecordToEdit] = useState(null);
 
+  const fetchLiveAttendance = React.useCallback(async () => {
+    try {
+      if (isAdmin) {
+        const rows = await attendanceService.getAllAttendance();
+        if (Array.isArray(rows) && rows.length > 0) {
+          const mapped = rows.map((r, idx) => ({
+            id: r.attendance_id || `att-srv-${idx}`,
+            employeeId: r.user_id,
+            employeeName: r.employee_name || 'Employee',
+            employeeAvatar: r.avatar_url || '',
+            department: r.department || 'Engineering',
+            date: r.date,
+            checkIn: r.check_in_time ? new Date(r.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-',
+            checkOut: r.check_out_time ? new Date(r.check_out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-',
+            workHours: `${Math.floor(r.hours_worked || 0)}h ${Math.floor(((r.hours_worked || 0) % 1) * 60)}m`,
+            extraHours: '00:00',
+            status: (r.status || 'PRESENT').toUpperCase(),
+          }));
+          setAttendanceRecords(mapped);
+        }
+      } else {
+        const myLogs = await attendanceService.getMyLogs();
+        if (myLogs?.records && myLogs.records.length > 0) {
+          const mapped = myLogs.records.map((r, idx) => ({
+            id: r.id || `att-srv-${idx}`,
+            employeeId: activeUser?.id,
+            employeeName: activeUser?.name || 'Me',
+            employeeAvatar: activeUser?.avatar || '',
+            department: activeUser?.department || 'Engineering',
+            date: r.date,
+            checkIn: r.check_in ? new Date(r.check_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-',
+            checkOut: r.check_out ? new Date(r.check_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-',
+            workHours: `${Math.floor(r.work_hours || 0)}h`,
+            extraHours: '00:00',
+            status: (r.status || 'PRESENT').toUpperCase(),
+          }));
+          setAttendanceRecords(mapped);
+        }
+      }
+    } catch (err) {
+      console.warn('Backend attendance fetch warning:', err.message);
+    }
+  }, [isAdmin, activeUser?.id]);
+
   useEffect(() => {
-    const unsub = storage.subscribe(STORAGE_KEYS.ATTENDANCE, (recs) => {
-      if (recs) setAttendanceRecords(recs);
-    });
-    return () => unsub();
-  }, []);
+    fetchLiveAttendance();
+  }, [fetchLiveAttendance]);
 
   const currentDateStr = useMemo(() => {
     const year = selectedMonth.split('-')[0] || '2025';
@@ -146,7 +188,7 @@ export default function AttendancePage() {
         isOpen={isOverrideModalOpen}
         onClose={() => setIsOverrideModalOpen(false)}
         initialRecord={selectedRecordToEdit}
-        onSuccess={() => setAttendanceRecords(storage.getAttendance())}
+        onSuccess={fetchLiveAttendance}
       />
     </div>
   );

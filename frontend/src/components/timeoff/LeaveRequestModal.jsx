@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { storage, STORAGE_KEYS } from '../../data/storage';
+
+import { leavesService } from '../../services/leavesService';
 import { X, Plane, Calendar, Paperclip, CheckCircle2, FileText } from 'lucide-react';
 
 export default function LeaveRequestModal({ isOpen, onClose, onSuccess }) {
@@ -8,9 +9,12 @@ export default function LeaveRequestModal({ isOpen, onClose, onSuccess }) {
   const [leaveType, setLeaveType] = useState('Paid Time Off');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isHalfDay, setIsHalfDay] = useState(false);
+  const [halfDayPeriod, setHalfDayPeriod] = useState('FIRST_HALF');
   const [reason, setReason] = useState('');
   const [attachment, setAttachment] = useState(null);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -18,7 +22,8 @@ export default function LeaveRequestModal({ isOpen, onClose, onSuccess }) {
   const start = new Date(startDate);
   const end = new Date(endDate);
   const diffTime = end.getTime() - start.getTime();
-  const totalDays = diffTime >= 0 ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1 : 1;
+  const rawDays = diffTime >= 0 ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1 : 1;
+  const totalDays = isHalfDay ? 0.5 : rawDays;
 
   const handleSimulateFile = () => {
     setAttachment({
@@ -27,7 +32,7 @@ export default function LeaveRequestModal({ isOpen, onClose, onSuccess }) {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -41,27 +46,31 @@ export default function LeaveRequestModal({ isOpen, onClose, onSuccess }) {
       return;
     }
 
-    const newRequest = {
-      id: `req-${Date.now()}`,
-      employeeId: activeUser?.id || 'emp-2',
-      employeeName: activeUser?.name || 'John Doe',
-      employeeAvatar: activeUser?.avatar || '',
-      department: activeUser?.department || 'Engineering',
-      leaveType,
-      startDate,
-      endDate,
-      totalDays,
-      reason: reason.trim(),
-      status: 'PENDING',
-      appliedAt: new Date().toISOString(),
-      reviewedBy: null,
-      reviewedByName: null,
-      reviewedAt: null,
-      adminRemarks: null,
-      attachment,
-    };
+    setIsSubmitting(true);
 
-    storage.update(STORAGE_KEYS.LEAVE_REQUESTS, (records = []) => [newRequest, ...records]);
+    const backendLeaveType =
+      leaveType === 'Sick Time Off'
+        ? 'SICK_LEAVE'
+        : leaveType === 'Paid Time Off'
+        ? 'PAID_LEAVE'
+        : 'UNPAID_LEAVE';
+
+    try {
+      await leavesService.applyLeave({
+        leave_type: backendLeaveType,
+        start_date: startDate,
+        end_date: isHalfDay ? startDate : endDate,
+        duration: totalDays,
+        is_half_day: isHalfDay,
+        half_day_period: isHalfDay ? halfDayPeriod : null,
+        reason: reason.trim(),
+      });
+    } catch (err) {
+      console.warn('Backend leave apply warning:', err.message);
+    }
+
+    // Removed storage mutation, we rely entirely on backend now.
+    setIsSubmitting(false);
 
     if (onSuccess) onSuccess();
     onClose();

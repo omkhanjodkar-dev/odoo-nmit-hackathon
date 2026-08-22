@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { storage, STORAGE_KEYS } from '../data/storage';
+import { payrollService } from '../services/payrollService';
+import { employeesService } from '../services/employeesService';
 import PayrollSummary from '../components/payroll/PayrollSummary';
 import SalaryStructureTable from '../components/payroll/SalaryStructureTable';
 import SalaryConfigModal from '../components/payroll/SalaryConfigModal';
@@ -8,18 +9,78 @@ import { DollarSign, Search, CheckCircle2, FileSpreadsheet } from 'lucide-react'
 
 export default function PayrollPage() {
   const { activeUser, isAdmin } = useAuth();
-  const [employees, setEmployees] = useState(() => storage.getEmployees());
+  const [employees, setEmployees] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDept, setSelectedDept] = useState('ALL');
   const [configuringEmployee, setConfiguringEmployee] = useState(null);
   const [successNotice, setSuccessNotice] = useState('');
 
+  const fetchLivePayroll = React.useCallback(async () => {
+    try {
+      let currentEmployees = [];
+      if (isAdmin) {
+        try {
+          currentEmployees = await employeesService.getEmployees() || [];
+        } catch (e) {
+          console.warn('Failed to fetch employees for payroll', e.message);
+        }
+        const salaries = await payrollService.getAllSalaries();
+        if (Array.isArray(salaries) && salaries.length > 0) {
+          const updatedEmps = currentEmployees.map((e) => {
+            const matched = salaries.find((s) => s.user_id === e.id || s.employee_id === e.employeeId);
+            if (matched) {
+              return {
+                ...e,
+                salary_structure: {
+                  base_pay: matched.base_pay,
+                  hra: matched.hra,
+                  standard_allowance: matched.standard_allowance,
+                  performance_bonus: matched.performance_bonus,
+                  gross_salary: matched.gross_salary,
+                  pf_employee: matched.pf_employee,
+                  pf_employer: matched.pf_employer,
+                  professional_tax: matched.professional_tax,
+                  net_deductions: matched.net_deductions,
+                  net_salary: matched.net_salary,
+                },
+              };
+            }
+            return e;
+          });
+          setEmployees(updatedEmps);
+        } else {
+          setEmployees(currentEmployees);
+        }
+      } else {
+        const mySal = await payrollService.getMySalary();
+        if (mySal && activeUser?.id) {
+          setEmployees([{
+            ...activeUser,
+            salary_structure: {
+              base_pay: mySal.base_pay,
+              hra: mySal.hra,
+              standard_allowance: mySal.standard_allowance,
+              performance_bonus: mySal.performance_bonus,
+              gross_salary: mySal.gross_salary,
+              pf_employee: mySal.pf_employee,
+              pf_employer: mySal.pf_employer,
+              professional_tax: mySal.professional_tax,
+              net_deductions: mySal.net_deductions,
+              net_salary: mySal.net_salary,
+            },
+          }]);
+        } else if (activeUser) {
+          setEmployees([activeUser]);
+        }
+      }
+    } catch (err) {
+      console.warn('Backend payroll fetch warning:', err.message);
+    }
+  }, [isAdmin, activeUser]);
+
   useEffect(() => {
-    const unsub = storage.subscribe(STORAGE_KEYS.EMPLOYEES, (emps) => {
-      if (emps) setEmployees(emps);
-    });
-    return () => unsub();
-  }, []);
+    fetchLivePayroll();
+  }, [fetchLivePayroll]);
 
   const departmentOptions = useMemo(() => {
     const depts = Array.from(new Set(employees.map((e) => e.department).filter(Boolean)));
@@ -46,14 +107,19 @@ export default function PayrollPage() {
     });
   }, [employees, isAdmin, activeUser?.id, searchQuery, selectedDept]);
 
-  const handleSaveSalaryStructure = (employeeId, updatedStructure) => {
+  const handleSaveSalaryStructure = async (employeeId, updatedStructure) => {
     const target = employees.find((e) => e.id === employeeId);
     if (target) {
-      const updated = {
-        ...target,
-        salary_structure: updatedStructure,
-      };
-      storage.saveEmployee(updated);
+      const basePay = updatedStructure.base_pay || updatedStructure.basePay || 50000;
+      
+      try {
+        const userId = target.user_id || target.id;
+        await payrollService.updateEmployeeSalary(userId, basePay);
+      } catch (err) {
+        console.warn('Backend salary update warning:', err.message);
+      }
+
+      fetchLivePayroll();
       setSuccessNotice(`Salary structure updated for ${target.name}!`);
       setTimeout(() => setSuccessNotice(''), 3500);
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { storage, STORAGE_KEYS } from '../data/storage';
+
+import { employeesService } from '../services/employeesService';
 import EmployeeKanban from '../components/employees/EmployeeKanban';
 import EmployeeTable from '../components/employees/EmployeeTable';
 import AddEmployeeModal from '../components/employees/AddEmployeeModal';
@@ -8,19 +9,51 @@ import { Users, Search, Plus, LayoutGrid, List } from 'lucide-react';
 
 export default function EmployeesPage() {
   const { isAdmin } = useAuth();
-  const [employees, setEmployees] = useState(() => storage.getEmployees());
+  const [employees, setEmployees] = useState([]);
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'table'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDept, setSelectedDept] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  useEffect(() => {
-    const unsub = storage.subscribe(STORAGE_KEYS.EMPLOYEES, (emps) => {
-      if (emps) setEmployees(emps);
-    });
-    return () => unsub();
+  const fetchLiveEmployees = React.useCallback(async () => {
+    try {
+      const liveEmps = await employeesService.getEmployees();
+      if (Array.isArray(liveEmps) && liveEmps.length > 0) {
+        const mapped = liveEmps.map((e) => {
+          const firstName = e.first_name || 'Employee';
+          const lastName = e.last_name || '';
+          const fullName = e.name || `${firstName} ${lastName}`.trim();
+          const role = (e.role || 'EMPLOYEE').toUpperCase().includes('ADMIN') ? 'ADMIN_HR' : 'EMPLOYEE';
+          return {
+            id: e.user_id,
+            user_id: e.user_id,
+            employeeId: e.employee_id,
+            employee_id: e.employee_id,
+            name: fullName,
+            firstName,
+            lastName,
+            email: e.email,
+            phone: e.phone_number ? String(e.phone_number) : '+91 98765 00000',
+            role,
+            department: e.department || (role === 'ADMIN_HR' ? 'Human Resources' : 'Engineering'),
+            designation: e.designation || (role === 'ADMIN_HR' ? 'HR Administrator' : 'Software Engineer'),
+            avatar: e.profile_image || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+            status: (e.status || 'present').toLowerCase(),
+            attendance_status: (e.status || 'PRESENT').toUpperCase(),
+          };
+        });
+
+        setEmployees(mapped);
+      }
+    } catch (err) {
+      console.warn('Backend employees fetch warning:', err.message);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchLiveEmployees();
+  }, [fetchLiveEmployees]);
 
   const departmentOptions = useMemo(() => {
     const depts = Array.from(new Set(employees.map((e) => e.department).filter(Boolean)));
@@ -168,7 +201,7 @@ export default function EmployeesPage() {
       <AddEmployeeModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onEmployeeAdded={() => setEmployees(storage.getEmployees())}
+        onEmployeeAdded={fetchLiveEmployees}
       />
     </div>
   );

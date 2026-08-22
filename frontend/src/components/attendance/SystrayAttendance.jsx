@@ -1,30 +1,58 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { storage, STORAGE_KEYS } from '../../data/storage';
 import { useAuth } from '../../context/AuthContext';
+import { attendanceService } from '../../services/attendanceService';
 import { Play, Square, Clock, Sparkles } from 'lucide-react';
 
 export default function SystrayAttendance({ className = '', compact = false }) {
   const { activeUser } = useAuth();
-  const [systrayState, setSystrayState] = useState(() => storage.getSystrayState());
-  const [elapsed, setElapsed] = useState(() => systrayState?.elapsedSeconds || 0);
+  
+  // Local state for the systray
+  const [systrayState, setSystrayState] = useState(null);
+  const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef(null);
 
-  // Sync with storage changes
+  // Initial backend status synchronization
   useEffect(() => {
-    const unsubscribe = storage.subscribe(STORAGE_KEYS.SYSTRAY_STATE, (newState) => {
-      if (newState) {
-        setSystrayState(newState);
-        if (newState.isRunning && newState.lastTick) {
-          const delta = Math.floor((Date.now() - newState.lastTick) / 1000);
-          setElapsed((newState.elapsedSeconds || 0) + Math.max(0, delta));
-        } else {
-          setElapsed(newState.elapsedSeconds || 0);
-        }
-      }
-    });
+    const fetchStatus = async () => {
+      try {
+        const res = await attendanceService.getStatus();
+        if (res) {
+          const isServerCheckedIn = Boolean(res.checked_in);
+          if (isServerCheckedIn) {
+            const checkInDate = res.check_in_time ? new Date(res.check_in_time) : new Date();
+            const elapsedSince = Math.max(0, Math.floor((Date.now() - checkInDate.getTime()) / 1000));
+            const formattedTime = checkInDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 
-    return () => unsubscribe();
-  }, []);
+            const updated = {
+              status: 'checked_in',
+              checkInTime: formattedTime,
+              checkInTimestamp: checkInDate.toISOString(),
+              elapsedSeconds: elapsedSince,
+              isRunning: true,
+              lastTick: Date.now(),
+            };
+            setSystrayState(updated);
+            setElapsed(elapsedSince);
+          } else if (res.last_check_out_time) {
+            const updated = {
+              status: 'checked_out',
+              checkInTime: null,
+              checkInTimestamp: null,
+              elapsedSeconds: Math.floor((res.hours_worked_today || 0) * 3600),
+              isRunning: false,
+              lastTick: null,
+            };
+            setSystrayState(updated);
+            setElapsed(updated.elapsedSeconds);
+          }
+        }
+      } catch (err) {
+        console.warn('Backend attendance status fetch warning:', err.message);
+      }
+    };
+
+    fetchStatus();
+  }, [activeUser?.id]);
 
   // Live Timer interval
   useEffect(() => {
@@ -34,9 +62,8 @@ export default function SystrayAttendance({ className = '', compact = false }) {
       timerRef.current = setInterval(() => {
         setElapsed((prev) => {
           const next = prev + 1;
-          // Periodically sync elapsed seconds
           if (next % 15 === 0) {
-            storage.update(STORAGE_KEYS.SYSTRAY_STATE, (curr) => ({
+            setSystrayState((curr) => ({
               ...curr,
               elapsedSeconds: next,
               lastTick: Date.now(),
@@ -68,15 +95,20 @@ export default function SystrayAttendance({ className = '', compact = false }) {
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleToggleAttendance = () => {
+  const handleToggleAttendance = async () => {
     const isCurrentlyCheckedIn = systrayState?.status === 'checked_in';
     const now = new Date();
     const formattedTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-    const todayStr = now.toISOString().split('T')[0];
-    const user = activeUser || storage.getCurrentUser();
 
     if (!isCurrentlyCheckedIn) {
-      // Check-In
+      // 1. Backend Check-In
+      try {
+        await attendanceService.checkIn('Web Portal');
+      } catch (err) {
+        console.warn('Backend check-in warning:', err.message);
+      }
+
+      // Check-In State
       const newState = {
         status: 'checked_in',
         checkInTime: formattedTime,
@@ -86,53 +118,16 @@ export default function SystrayAttendance({ className = '', compact = false }) {
         lastTick: Date.now(),
       };
       setElapsed(0);
-      storage.setSystrayState(newState);
-
-      // Update Attendance record for today
-      storage.update(STORAGE_KEYS.ATTENDANCE, (records = []) => {
-        const existingIdx = records.findIndex(
-          (r) => r.employeeId === user?.id && r.date === todayStr
-        );
-        if (existingIdx >= 0) {
-          const updated = [...records];
-          updated[existingIdx] = {
-            ...updated[existingIdx],
-            checkIn: formattedTime,
-            status: 'PRESENT',
-            isCurrentDay: true,
-          };
-          return updated;
-        } else {
-          return [
-            {
-              id: `att-${Date.now()}`,
-              employeeId: user?.id || 'emp-2',
-              employeeName: user?.name || 'John Doe',
-              employeeAvatar: user?.avatar || '',
-              department: user?.department || 'Engineering',
-              date: todayStr,
-              checkIn: formattedTime,
-              checkOut: '-',
-              workHours: '00:00',
-              extraHours: '00:00',
-              status: 'PRESENT',
-              isCurrentDay: true,
-            },
-            ...records,
-          ];
-        }
-      });
-
-      // Update employee status to present
-      storage.update(STORAGE_KEYS.EMPLOYEES, (emps = []) =>
-        emps.map((e) => (e.id === user?.id ? { ...e, status: 'present', attendance_status: 'PRESENT' } : e))
-      );
+      setSystrayState(newState);
     } else {
-      // Check-Out
-      const hrsPart = Math.floor(elapsed / 3600).toString().padStart(2, '0');
-      const minsPart = Math.floor((elapsed % 3600) / 60).toString().padStart(2, '0');
-      const workHoursStr = `${hrsPart}:${minsPart}`;
+      // 2. Backend Check-Out
+      try {
+        await attendanceService.checkOut();
+      } catch (err) {
+        console.warn('Backend check-out warning:', err.message);
+      }
 
+      // Check-Out State
       const newState = {
         status: 'checked_out',
         checkInTime: systrayState?.checkInTime || null,
@@ -141,23 +136,7 @@ export default function SystrayAttendance({ className = '', compact = false }) {
         isRunning: false,
         lastTick: null,
       };
-      storage.setSystrayState(newState);
-
-      // Update Attendance record with check-out
-      storage.update(STORAGE_KEYS.ATTENDANCE, (records = []) =>
-        records.map((r) => {
-          if (r.employeeId === user?.id && r.date === todayStr) {
-            return {
-              ...r,
-              checkOut: formattedTime,
-              workHours: workHoursStr,
-              status: elapsed >= 4 * 3600 ? 'PRESENT' : 'HALF_DAY',
-              extraHours: elapsed > 8 * 3600 ? `${Math.floor((elapsed - 8 * 3600) / 3600).toString().padStart(2, '0')}:00` : '00:00',
-            };
-          }
-          return r;
-        })
-      );
+      setSystrayState(newState);
     }
   };
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { storage, STORAGE_KEYS } from '../../data/storage';
+import { attendanceService } from '../../services/attendanceService';
+import { leavesService } from '../../services/leavesService';
 import SystrayAttendance from '../attendance/SystrayAttendance';
 import {
   Plane,
@@ -16,18 +17,41 @@ import {
 export default function EmployeeDashboard() {
   const { activeUser } = useAuth();
   const navigate = useNavigate();
-  const [attendance, setAttendance] = useState(() => storage.getAttendance());
-  const [leaveBalances, setLeaveBalances] = useState(() => storage.getLeaveBalances());
+  const [attendance, setAttendance] = useState([]);
+  const [leaveBalances, setLeaveBalances] = useState({});
 
   useEffect(() => {
-    const unsubAtt = storage.subscribe(STORAGE_KEYS.ATTENDANCE, (a) => a && setAttendance(a));
-    const unsubLeaves = storage.subscribe(STORAGE_KEYS.LEAVE_BALANCES, (l) => l && setLeaveBalances(l));
+    const fetchData = async () => {
+      try {
+        const attRes = await attendanceService.getMyLogs();
+        if (attRes?.records) {
+          const mappedAtt = attRes.records.map((r, idx) => ({
+            id: r.id || `att-srv-${idx}`,
+            employeeId: activeUser?.id,
+            date: r.date,
+            checkIn: r.check_in ? new Date(r.check_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-',
+            checkOut: r.check_out ? new Date(r.check_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-',
+            workHours: `${Math.floor(r.work_hours || 0)}h`,
+            status: (r.status || 'PRESENT').toUpperCase(),
+          }));
+          setAttendance(mappedAtt);
+        }
 
-    return () => {
-      unsubAtt();
-      unsubLeaves();
+        const balRes = await leavesService.getMyBalance();
+        if (balRes && activeUser?.id) {
+          const mappedBalance = {
+            paidLeave: { total: 24, used: 24 - (balRes.paid_leave || 0), available: balRes.paid_leave || 0 },
+            sickLeave: { total: 12, used: 12 - (balRes.sick_leave || 0), available: balRes.sick_leave || 0 },
+            unpaidLeave: { total: 0, used: balRes.unpaid_leave || 0, available: 0 },
+          };
+          setLeaveBalances({ [activeUser.id]: mappedBalance });
+        }
+      } catch (err) {
+        console.warn('Dashboard fetch warning', err.message);
+      }
     };
-  }, []);
+    fetchData();
+  }, [activeUser?.id]);
 
   const userBalances = useMemo(() => {
     return (

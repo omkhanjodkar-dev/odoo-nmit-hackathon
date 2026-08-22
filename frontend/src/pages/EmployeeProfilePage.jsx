@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { storage } from '../data/storage';
+import { employeesService } from '../services/employeesService';
 import ProfileHeader from '../components/employees/ProfileHeader';
 import ResumeTab from '../components/employees/tabs/ResumeTab';
 import AttendanceActivityTab from '../components/employees/tabs/AttendanceActivityTab';
@@ -31,17 +31,28 @@ export default function EmployeeProfilePage() {
   const [saveNotice, setSaveNotice] = useState(false);
 
   useEffect(() => {
-    let target = null;
-    if (id) {
-      target = storage.getEmployeeById(id);
-    } else {
-      // /profile defaults to activeUser
-      target = activeUser || currentUser || storage.getEmployees()[0];
-    }
-
-    if (target) {
-      setEmployee(JSON.parse(JSON.stringify(target)));
-    }
+    const fetchEmployee = async () => {
+      if (id) {
+        try {
+          const emps = await employeesService.getEmployees();
+          const target = emps.find(e => String(e.user_id) === String(id) || String(e.id) === String(id) || String(e.employee_id) === String(id));
+          if (target) {
+            const mapped = {
+              ...target,
+              id: target.user_id,
+              employeeId: target.employee_id,
+              name: target.name || `${target.first_name || ''} ${target.last_name || ''}`.trim(),
+            };
+            setEmployee(mapped);
+          }
+        } catch (e) {
+          console.warn(e);
+        }
+      } else {
+        setEmployee(activeUser || currentUser);
+      }
+    };
+    fetchEmployee();
   }, [id, activeUser, currentUser]);
 
   if (!employee) {
@@ -66,8 +77,21 @@ export default function EmployeeProfilePage() {
     }));
   };
 
-  const handleSaveProfile = () => {
-    storage.saveEmployee(employee);
+  const handleSaveProfile = async () => {
+    try {
+      const payload = {
+        first_name: employee.firstName || employee.name?.split(' ')[0],
+        last_name: employee.lastName || employee.name?.split(' ').slice(1).join(' '),
+        phone_number: employee.phone ? parseInt(employee.phone.replace(/\D/g, '').slice(-10), 10) : null,
+        address: employee.address || employee.privateAddress,
+        dob: employee.dob || employee.dateOfBirth,
+        blood_group: employee.bloodGroup,
+      };
+      await employeesService.updatePersonalInfo(employee.id || employee.user_id, payload);
+    } catch (e) {
+      console.warn("Failed to update profile", e);
+    }
+    
     if (employee.id === activeUser?.id) {
       updateActiveProfile(employee);
     }

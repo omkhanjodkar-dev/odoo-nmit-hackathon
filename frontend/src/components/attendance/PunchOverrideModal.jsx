@@ -1,15 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { storage, STORAGE_KEYS } from '../../data/storage';
+import { employeesService } from '../../services/employeesService';
 import { X, Clock, Edit2, ShieldAlert } from 'lucide-react';
 
 export default function PunchOverrideModal({ isOpen, onClose, initialRecord, onSuccess }) {
-  const [employees, setEmployees] = useState(() => storage.getEmployees());
+  const [employees, setEmployees] = useState([]);
   const [selectedEmpId, setSelectedEmpId] = useState('');
   const [date, setDate] = useState('');
   const [checkIn, setCheckIn] = useState('09:00 AM');
   const [checkOut, setCheckOut] = useState('06:00 PM');
   const [remarks, setRemarks] = useState('Missed punch adjusted per manager email confirmation.');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      employeesService.getEmployees().then(data => {
+        if (data && data.length > 0) {
+          setEmployees(data);
+        }
+      }).catch(err => console.warn(err));
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (initialRecord) {
@@ -37,39 +47,9 @@ export default function PunchOverrideModal({ isOpen, onClose, initialRecord, onS
 
     const emp = employees.find((e) => e.id === selectedEmpId);
 
-    storage.update(STORAGE_KEYS.ATTENDANCE, (records = []) => {
-      if (initialRecord) {
-        return records.map((r) =>
-          r.id === initialRecord.id
-            ? {
-                ...r,
-                checkIn,
-                checkOut,
-                workHours: '08:00',
-                status: 'OVERRIDDEN',
-                notes: remarks,
-              }
-            : r
-        );
-      } else {
-        const newRecord = {
-          id: `att-override-${Date.now()}`,
-          employeeId: emp?.id || 'emp-2',
-          employeeName: emp?.name || 'Employee',
-          employeeAvatar: emp?.avatar || '',
-          department: emp?.department || 'Engineering',
-          date,
-          checkIn,
-          checkOut,
-          workHours: '08:00',
-          extraHours: '00:00',
-          status: 'OVERRIDDEN',
-          notes: remarks,
-        };
-        return [newRecord, ...records];
-      }
-    });
-
+    // TODO: Call backend API for override here when available
+    // await attendanceService.overridePunch({...});
+    
     if (onSuccess) onSuccess();
     onClose();
   };

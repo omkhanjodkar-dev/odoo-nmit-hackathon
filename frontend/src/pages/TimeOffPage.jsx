@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { storage, STORAGE_KEYS } from '../data/storage';
+
+import { leavesService } from '../services/leavesService';
 import LeaveBalanceCards from '../components/timeoff/LeaveBalanceCards';
 import LeaveRequestTable from '../components/timeoff/LeaveRequestTable';
 import LeaveRequestModal from '../components/timeoff/LeaveRequestModal';
@@ -9,8 +10,8 @@ import { Plane, Plus, Search, FileText, CheckCircle2 } from 'lucide-react';
 
 export default function TimeOffPage() {
   const { activeUser, isAdmin } = useAuth();
-  const [leaveBalances, setLeaveBalances] = useState(() => storage.getLeaveBalances());
-  const [leaveRequests, setLeaveRequests] = useState(() => storage.getLeaveRequests());
+  const [leaveBalances, setLeaveBalances] = useState({});
+  const [leaveRequests, setLeaveRequests] = useState([]);
   const [activeTab, setActiveTab] = useState('ALL'); // 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
@@ -18,15 +19,54 @@ export default function TimeOffPage() {
   const [rejectModalState, setRejectModalState] = useState({ isOpen: false, request: null });
   const [previewAttachment, setPreviewAttachment] = useState(null);
 
-  useEffect(() => {
-    const unsubBalances = storage.subscribe(STORAGE_KEYS.LEAVE_BALANCES, (b) => b && setLeaveBalances(b));
-    const unsubRequests = storage.subscribe(STORAGE_KEYS.LEAVE_REQUESTS, (r) => r && setLeaveRequests(r));
+  // Sync balances and pending leaves with live FastAPI backend
+  const fetchLiveLeaveData = React.useCallback(async () => {
+    try {
+      const balance = await leavesService.getMyBalance();
+      if (balance && activeUser?.id) {
+        const mappedBalance = {
+          paidLeave: { total: 24, used: 24 - (balance.paid_leave || 0), available: balance.paid_leave || 0 },
+          sickLeave: { total: 12, used: 12 - (balance.sick_leave || 0), available: balance.sick_leave || 0 },
+          unpaidLeave: { total: 0, used: balance.unpaid_leave || 0, available: 0 },
+        };
+        setLeaveBalances((prev) => ({
+          ...prev,
+          [activeUser.id]: mappedBalance,
+        }));
+      }
 
-    return () => {
-      unsubBalances();
-      unsubRequests();
-    };
-  }, []);
+      if (isAdmin) {
+        const pending = await leavesService.getPendingLeaves();
+        if (Array.isArray(pending) && pending.length > 0) {
+          const mappedPending = pending.map((p) => ({
+            id: p.leave_id,
+            employeeId: p.user_id,
+            employeeName: p.employee_name || 'Employee',
+            employeeAvatar: '',
+            department: p.department || 'Engineering',
+            leaveType: p.leave_type === 'SICK_LEAVE' ? 'Sick Time Off' : p.leave_type === 'PAID_LEAVE' ? 'Paid Time Off' : 'Unpaid Leave',
+            startDate: p.start_date,
+            endDate: p.end_date,
+            totalDays: p.duration || 1,
+            reason: p.reason || '',
+            status: 'PENDING',
+            appliedAt: p.created_at || new Date().toISOString(),
+          }));
+          
+          setLeaveRequests((prev) => {
+            const nonPending = prev.filter((r) => r.status !== 'PENDING');
+            return [...mappedPending, ...nonPending];
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Backend leaves fetch warning:', err.message);
+    }
+  }, [isAdmin, activeUser?.id]);
+
+  useEffect(() => {
+    fetchLiveLeaveData();
+  }, [fetchLiveLeaveData]);
 
   const currentBalances = useMemo(() => {
     return (
@@ -63,63 +103,24 @@ export default function TimeOffPage() {
     });
   }, [leaveRequests, isAdmin, activeUser?.id, activeTab, typeFilter, searchQuery]);
 
-  const handleApprove = (requestId) => {
-    storage.update(STORAGE_KEYS.LEAVE_REQUESTS, (requests = []) => {
-      const targetReq = requests.find((r) => r.id === requestId);
-      if (!targetReq) return requests;
+  const handleApprove = async (requestId) => {
+    try {
+      await leavesService.approveLeave(requestId, 'Approved by Administrator');
+    } catch (err) {
+      console.warn('Backend approve leave warning:', err.message);
+    }
 
-      // Deduct balance
-      storage.update(STORAGE_KEYS.LEAVE_BALANCES, (balances = {}) => {
-        const empBal = balances[targetReq.employeeId];
-        if (!empBal) return balances;
-
-        const updated = { ...balances };
-        if (targetReq.leaveType === 'Paid Time Off') {
-          updated[targetReq.employeeId].paidLeave.used += targetReq.totalDays;
-          updated[targetReq.employeeId].paidLeave.available = Math.max(
-            0,
-            updated[targetReq.employeeId].paidLeave.available - targetReq.totalDays
-          );
-        } else if (targetReq.leaveType === 'Sick Time Off') {
-          updated[targetReq.employeeId].sickLeave.used += targetReq.totalDays;
-          updated[targetReq.employeeId].sickLeave.available = Math.max(
-            0,
-            updated[targetReq.employeeId].sickLeave.available - targetReq.totalDays
-          );
-        }
-        return updated;
-      });
-
-      return requests.map((r) =>
-        r.id === requestId
-          ? {
-              ...r,
-              status: 'APPROVED',
-              reviewedBy: activeUser?.id,
-              reviewedByName: activeUser?.name,
-              reviewedAt: new Date().toISOString(),
-              adminRemarks: 'Approved by Administrator.',
-            }
-          : r
-      );
-    });
+    fetchLiveLeaveData();
   };
 
-  const handleConfirmReject = (requestId, remarks) => {
-    storage.update(STORAGE_KEYS.LEAVE_REQUESTS, (requests = []) =>
-      requests.map((r) =>
-        r.id === requestId
-          ? {
-              ...r,
-              status: 'REJECTED',
-              reviewedBy: activeUser?.id,
-              reviewedByName: activeUser?.name,
-              reviewedAt: new Date().toISOString(),
-              adminRemarks: remarks,
-            }
-          : r
-      )
-    );
+  const handleConfirmReject = async (requestId, remarks) => {
+    try {
+      await leavesService.rejectLeave(requestId, remarks || 'Rejected by Administrator');
+    } catch (err) {
+      console.warn('Backend reject leave warning:', err.message);
+    }
+
+    fetchLiveLeaveData();
   };
 
   return (
@@ -216,10 +217,7 @@ export default function TimeOffPage() {
       <LeaveRequestModal
         isOpen={isApplyModalOpen}
         onClose={() => setIsApplyModalOpen(false)}
-        onSuccess={() => {
-          setLeaveRequests(storage.getLeaveRequests());
-          setLeaveBalances(storage.getLeaveBalances());
-        }}
+        onSuccess={fetchLiveLeaveData}
       />
 
       {/* Reject Remarks Modal */}

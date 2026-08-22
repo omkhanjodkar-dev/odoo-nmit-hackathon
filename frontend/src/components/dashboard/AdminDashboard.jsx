@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { storage, STORAGE_KEYS } from '../../data/storage';
+import { employeesService } from '../../services/employeesService';
+import { leavesService } from '../../services/leavesService';
 import {
   Users,
   UserCheck,
@@ -17,18 +18,44 @@ import {
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [employees, setEmployees] = useState(() => storage.getEmployees());
-  const [leaveRequests, setLeaveRequests] = useState(() => storage.getLeaveRequests());
+  const [employees, setEmployees] = useState([]);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+
+  const fetchData = React.useCallback(async () => {
+    try {
+      const [empsRes, leavesRes] = await Promise.all([
+        employeesService.getEmployees(),
+        leavesService.getPendingLeaves()
+      ]);
+      
+      if (Array.isArray(empsRes)) {
+        setEmployees(empsRes);
+      }
+      
+      if (Array.isArray(leavesRes)) {
+        const mappedLeaves = leavesRes.map(l => ({
+          id: l.leave_id,
+          employeeId: l.user_id,
+          employeeName: l.employee_name || 'Employee',
+          employeeAvatar: l.profile_image || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+          department: l.department || 'Engineering',
+          leaveType: l.leave_type === 'SICK_LEAVE' ? 'Sick Time Off' : l.leave_type === 'PAID_LEAVE' ? 'Paid Time Off' : 'Unpaid Leave',
+          startDate: l.start_date,
+          endDate: l.end_date,
+          totalDays: l.duration || 1,
+          reason: l.reason || '',
+          status: 'PENDING',
+        }));
+        setLeaveRequests(mappedLeaves);
+      }
+    } catch (err) {
+      console.warn('Admin Dashboard fetch error:', err.message);
+    }
+  }, []);
 
   useEffect(() => {
-    const unsubEmps = storage.subscribe(STORAGE_KEYS.EMPLOYEES, (e) => e && setEmployees(e));
-    const unsubLeaves = storage.subscribe(STORAGE_KEYS.LEAVE_REQUESTS, (l) => l && setLeaveRequests(l));
-
-    return () => {
-      unsubEmps();
-      unsubLeaves();
-    };
-  }, []);
+    fetchData();
+  }, [fetchData]);
 
   const totalEmployees = employees.length;
   const presentToday = employees.filter((e) => e.status === 'present' || e.attendance_status === 'PRESENT').length;
@@ -39,34 +66,22 @@ export default function AdminDashboard() {
     return leaveRequests.filter((r) => r.status === 'PENDING');
   }, [leaveRequests]);
 
-  const handleApprove = (requestId) => {
-    storage.update(STORAGE_KEYS.LEAVE_REQUESTS, (requests = []) =>
-      requests.map((r) =>
-        r.id === requestId
-          ? {
-              ...r,
-              status: 'APPROVED',
-              reviewedAt: new Date().toISOString(),
-              adminRemarks: 'Approved via Admin Quick Dashboard Action.',
-            }
-          : r
-      )
-    );
+  const handleApprove = async (requestId) => {
+    try {
+      await leavesService.approveLeave(requestId);
+      fetchData();
+    } catch (e) {
+      console.warn(e);
+    }
   };
 
-  const handleReject = (requestId) => {
-    storage.update(STORAGE_KEYS.LEAVE_REQUESTS, (requests = []) =>
-      requests.map((r) =>
-        r.id === requestId
-          ? {
-              ...r,
-              status: 'REJECTED',
-              reviewedAt: new Date().toISOString(),
-              adminRemarks: 'Rejected by Administrator via Quick Dashboard Action.',
-            }
-          : r
-      )
-    );
+  const handleReject = async (requestId) => {
+    try {
+      await leavesService.rejectLeave(requestId);
+      fetchData();
+    } catch (e) {
+      console.warn(e);
+    }
   };
 
   return (

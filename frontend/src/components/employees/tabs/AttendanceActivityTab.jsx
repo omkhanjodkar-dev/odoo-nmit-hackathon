@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { getEmployeeActivityData } from '../../../data/activityCalendarData';
+import React, { useState, useEffect, useMemo } from 'react';
+import { processActivityData } from '../../../utils/attendance';
+import { attendanceService } from '../../../services/attendanceService';
 import {
   Clock,
   Calendar,
@@ -14,21 +15,49 @@ import {
   CalendarDays,
   FileText,
   TrendingUp,
-  MapPin
+  MapPin,
+  Loader2
 } from 'lucide-react';
 
 export default function AttendanceActivityTab({ employee, isAdmin }) {
-  const [selectedYear, setSelectedYear] = useState(2025);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [hoveredDay, setHoveredDay] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'FULL_DAY' | 'HALF_DAY' | 'LEAVE'
   const [monthFilter, setMonthFilter] = useState('ALL'); // 'ALL' | 0..11
   const [logSearchQuery, setLogSearchQuery] = useState('');
+  
+  const [rawLogs, setRawLogs] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch structured activity dataset for target employee
+  useEffect(() => {
+    const loadLogs = async () => {
+      setIsLoading(true);
+      try {
+        let data = [];
+        if (isAdmin) {
+          // fetch all and filter for this employee, or API might need an endpoint by employee id
+          const all = await attendanceService.getAllAttendance();
+          data = all.filter(r => String(r.employee_id) === String(employee.id));
+        } else {
+          // Non-admins just get their own logs
+          data = await attendanceService.getMyLogs();
+        }
+        setRawLogs(data || []);
+      } catch (err) {
+        console.warn('Failed to load attendance logs:', err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    if (employee?.id) {
+      loadLogs();
+    }
+  }, [employee?.id, isAdmin]);
+
   const activityData = useMemo(() => {
-    return getEmployeeActivityData(employee?.id, selectedYear);
-  }, [employee?.id, selectedYear]);
+    return processActivityData(rawLogs, selectedYear);
+  }, [rawLogs, selectedYear]);
 
   // Group days into 53 weeks for the unified attendance grid
   const weekColumns = useMemo(() => {
@@ -133,10 +162,24 @@ export default function AttendanceActivityTab({ employee, isAdmin }) {
           if (!matchDate && !matchLabel && !matchNotes) return false;
         }
 
+        // Only show if there's actual activity or if it's an absence on a weekday
+        if (day.status === 'WEEKEND' || day.status === 'HOLIDAY') {
+          return false;
+        }
+
         return true;
       })
       .reverse();
   }, [activityData, monthFilter, statusFilter, logSearchQuery]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 animate-pulse">
+        <Loader2 className="w-8 h-8 text-[#714B67] animate-spin mb-4" />
+        <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Syncing Attendance Records...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -153,7 +196,7 @@ export default function AttendanceActivityTab({ employee, isAdmin }) {
               {activityData.summary.fullDays}
             </p>
             <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
-              8+ hrs logged ({Math.round((activityData.summary.fullDays / (activityData.summary.totalWorkingDays || 1)) * 100)}%)
+              8+ hrs logged ({activityData.summary.totalWorkingDays > 0 ? Math.round((activityData.summary.fullDays / activityData.summary.totalWorkingDays) * 100) : 0}%)
             </p>
           </div>
         </div>

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { storage } from '../../data/storage';
 import SystrayAttendance from '../attendance/SystrayAttendance';
 import {
   LayoutDashboard,
@@ -140,17 +139,6 @@ export default function Navbar() {
 
                   {/* Reset & Logout */}
                   <div className="px-2 pt-1.5 space-y-1">
-                    <button
-                      onClick={() => {
-                        storage.reset();
-                        setIsDropdownOpen(false);
-                      }}
-                      className="w-full text-left px-3 py-1.5 text-xs text-amber-600 font-bold hover:bg-amber-50 rounded-xl transition-colors flex items-center gap-2"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>Reset Demo Data</span>
-                    </button>
-
                     <button
                       onClick={handleLogout}
                       className="w-full text-left px-3 py-1.5 text-xs text-rose-600 font-bold hover:bg-rose-50 rounded-xl transition-colors flex items-center gap-2"

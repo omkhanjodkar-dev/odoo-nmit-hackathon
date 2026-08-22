@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { calculateSalaryComponents } from '../../data/mockPayroll';
+import { calculateSalaryComponents } from '../../utils/salary';
 import { X, DollarSign, Calculator, CheckCircle2 } from 'lucide-react';
 
 export default function SalaryConfigModal({ isOpen, employee, onClose, onSave, isAdmin }) {
