@@ -203,8 +203,8 @@ async def generate_payslips(
                 supabase.table("leave_log")
                 .select("id")
                 .eq("user_id", u_id)
+                .eq("approval_status", "Approved")
                 .ilike("leave_type", "%unpaid%")
-                .ilike("approved", "%approved%")
                 .execute()
             )
             if leave_res.data:

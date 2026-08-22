@@ -2,7 +2,7 @@
 
 *Project:* **Odoo** (`eqcknsmwlmohumvmzomb`)  
 *Schema:* `public`  
-*Fetched at:* 2026-08-22
+*Fetched & Updated at:* 2026-08-22
 
 ---
 
@@ -16,6 +16,8 @@ erDiagram
     auth_users ||--o| leave_balance : "user_id"
     auth_users ||--o{ leave_log : "user_id"
     auth_users ||--o{ fcm_tokens : "user_id"
+    auth_users ||--o| attendance_status : "user_id"
+    auth_users ||--o{ attendance_sessions : "user_id"
     profiles ||--o| salary_structures : "user_id"
 
     profiles {
@@ -69,7 +71,32 @@ erDiagram
         uuid user_id FK
         text leave_type
         text reason
-        text approved
+        text approval_status
+        date start_date
+        date end_date
+        real duration
+        boolean is_half_day
+        text half_day_period
+        text start_time
+        text end_time
+        text uploads
+        text admin_comments
+        timestamptz created_at
+        timestamptz approved_at
+    }
+
+    attendance_status {
+        uuid user_id PK, FK
+        boolean logged_in_status
+        timestamptz updated_at
+    }
+
+    attendance_sessions {
+        bigint id PK
+        uuid user_id FK
+        text logged_in
+        text logged_out
+        real duration
         timestamptz created_at
     }
 
@@ -137,7 +164,7 @@ Stores employee wage configuration.
 | :--- | :--- | :--- | :--- |
 | `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Unique record ID |
 | `user_id` | `uuid` | `UNIQUE`, `REFERENCES public.profiles(user_id)` | Linked employee profile |
-| `base_pay` | `numeric` | `CHECK (base_pay >= 0)` | Monthly base wage / gross salary |
+| `base_pay` | `numeric` | `NOT NULL` | Monthly base wage / gross salary |
 | `created_at` | `timestamptz` | `DEFAULT now()` | Record creation timestamp |
 | `updated_at` | `timestamptz` | `DEFAULT now()` | Last update timestamp |
 
@@ -151,7 +178,7 @@ Tracks remaining leave balances per employee.
 | `user_id` | `uuid` | `PRIMARY KEY`, `REFERENCES auth.users(id)` | Linked user account |
 | `sick_leave` | `real` | `NULLABLE`, `DEFAULT 12` | Sick leave quota |
 | `paid_leave` | `bigint` | `NULLABLE` | Paid / vacation leave quota |
-| `unpaid_leave` | `bigint` | `NULLABLE` | Unpaid leave quota / count |
+| `unpaid_leave` | `bigint` | `NULLABLE`, `DEFAULT 0` | Unpaid leave quota / count |
 | `created_at` | `timestamptz` | `DEFAULT now()` | Record creation timestamp |
 
 ---
@@ -165,12 +192,47 @@ Tracks time-off applications, reasons, and approval workflow status.
 | `user_id` | `uuid` | `NULLABLE`, `REFERENCES auth.users(id)` | Requesting employee |
 | `leave_type` | `text` | `NULLABLE` | Leave type (`sick`, `paid`, `unpaid`) |
 | `reason` | `text` | `NOT NULL` | Description / reason for leave |
-| `approved` | `text` | `NULLABLE`, `DEFAULT 'Waiting for approval'` | Approval status string |
+| `approval_status` | `text` | `NOT NULL`, `DEFAULT 'Waiting for approval'` | Workflow status (`Waiting for approval`, `Approved`, `Rejected`) |
+| `start_date` | `date` | `NULLABLE` | Leave start date |
+| `end_date` | `date` | `NULLABLE` | Leave end date |
+| `duration` | `real` | `DEFAULT 1.0` | Total leave days / hours duration (e.g. `0.5`, `1.0`, `3.0`) |
+| `is_half_day` | `boolean` | `DEFAULT false` | Flag indicating a half-day or partial-day leave |
+| `half_day_period` | `text` | `NULLABLE` | Period of half day (`first_half`, `second_half`, `custom`) |
+| `start_time` | `text` | `NULLABLE` | Start time for partial/half-day leave (e.g. `09:00`) |
+| `end_time` | `text` | `NULLABLE` | End time for partial/half-day leave (e.g. `13:00`) |
+| `uploads` | `text` | `NULLABLE` | Path/URL to attached document in `uploads` storage bucket |
+| `admin_comments` | `text` | `NULLABLE` | Administrative remarks upon approval or rejection |
 | `created_at` | `timestamptz` | `DEFAULT now()` | Request timestamp |
+| `approved_at` | `timestamptz` | `NULLABLE` | Timestamp when leave was approved |
 
 ---
 
-### 2.7 `public.fcm_tokens`
+### 2.7 `public.attendance_status`
+Tracks live clock-in / clock-out status per employee.
+
+| Column | Data Type | Constraints & Defaults | Description |
+| :--- | :--- | :--- | :--- |
+| `user_id` | `uuid` | `PRIMARY KEY`, `REFERENCES auth.users(id)` | Linked employee |
+| `logged_in_status` | `boolean` | `NOT NULL` | Active clock-in status boolean |
+| `updated_at` | `timestamptz` | `DEFAULT now()` | Last status change timestamp |
+
+---
+
+### 2.8 `public.attendance_sessions`
+Logs individual check-in and check-out attendance intervals.
+
+| Column | Data Type | Constraints & Defaults | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `bigint` | `PRIMARY KEY`, `GENERATED ALWAYS AS IDENTITY` | Session record ID |
+| `user_id` | `uuid` | `NULLABLE`, `REFERENCES auth.users(id)` | Linked employee |
+| `logged_in` | `text` | `NOT NULL` | Check-in timestamp string |
+| `logged_out` | `text` | `NULLABLE` | Check-out timestamp string |
+| `duration` | `real` | `NULLABLE` | Session duration in hours |
+| `created_at` | `timestamptz` | `DEFAULT now()` | Record creation timestamp |
+
+---
+
+### 2.9 `public.fcm_tokens`
 Stores device tokens for push notifications.
 
 | Column | Data Type | Constraints & Defaults | Description |
@@ -179,3 +241,30 @@ Stores device tokens for push notifications.
 | `user_id` | `uuid` | `NULLABLE`, `REFERENCES auth.users(id)` | Target user |
 | `fcm_token` | `text` | `NOT NULL` | Firebase Cloud Messaging token |
 | `created_at` | `timestamptz` | `DEFAULT now()` | Token registration timestamp |
+
+---
+
+## 3. Database Functions
+
+### 3.1 `approve_leave_request(p_leave_id UUID, p_duration REAL DEFAULT NULL, p_admin_comments TEXT DEFAULT NULL)`
+Atomically approves a pending leave request and updates the employee's leave balance in a single transaction.
+
+**Parameters:**
+- `p_leave_id` (`UUID`): The ID of the leave request in `leave_log`.
+- `p_duration` (`REAL`, optional): The duration of the leave to deduct. If omitted/null, the precalculated `leave_log.duration` is used.
+- `p_admin_comments` (`TEXT`, optional): Administrative notes/remarks recorded on approval.
+
+**Behavior:**
+1. Locks the corresponding `leave_log` row.
+2. Fails if the request is already 'Approved' or not found.
+3. Updates `leave_log.approval_status` to `'Approved'`, sets `leave_log.approved_at` to `now()`, and saves `admin_comments`.
+4. Deducts the `duration` from the corresponding `leave_balance` column (`sick_leave`, `paid_leave`, or `unpaid_leave`) based on the `leave_type`.
+
+---
+
+## 4. Storage Buckets (`storage.buckets`)
+
+| Bucket ID | Access Level | Description |
+| :--- | :--- | :--- |
+| `profile_image` | Private (`public: false`) | Stores employee profile avatars and profile pictures. |
+| `uploads` | Private (`public: false`) | Stores uploaded attachments (e.g. medical certificates, leave support documents). |

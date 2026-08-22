@@ -1,1 +1,7 @@
 secrets/
+.env
+**/.env
+!**/.env.example
+secrets_example/.env
+backend/app/**/__pycache__
+backend/app/**/__pycache__/*
