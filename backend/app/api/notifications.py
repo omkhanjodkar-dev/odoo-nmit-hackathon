@@ -31,10 +31,17 @@ async def register_fcm_token(
             "fcm_token": payload.fcm_token,
         }
 
-        res = supabase.table("fcm_tokens").upsert(
-            data_payload,
-            on_conflict="fcm_token",
-        ).execute()
+        try:
+            res = supabase.table("fcm_tokens").upsert(
+                data_payload,
+                on_conflict="fcm_token",
+            ).execute()
+        except Exception as upsert_err:
+            existing = supabase.table("fcm_tokens").select("id").eq("fcm_token", payload.fcm_token).execute()
+            if existing.data:
+                res = supabase.table("fcm_tokens").update(data_payload).eq("fcm_token", payload.fcm_token).execute()
+            else:
+                res = supabase.table("fcm_tokens").insert(data_payload).execute()
 
         return FCMTokenResponse(
             success=True,
