@@ -2,7 +2,7 @@
 
 *Project:* **Odoo** (`eqcknsmwlmohumvmzomb`)  
 *Schema:* `public`  
-*Fetched at:* 2026-08-22
+*Fetched & Updated at:* 2026-08-22
 
 ---
 
@@ -16,6 +16,8 @@ erDiagram
     auth_users ||--o| leave_balance : "user_id"
     auth_users ||--o{ leave_log : "user_id"
     auth_users ||--o{ fcm_tokens : "user_id"
+    auth_users ||--o| attendance_status : "user_id"
+    auth_users ||--o{ attendance_sessions : "user_id"
     profiles ||--o| salary_structures : "user_id"
 
     profiles {
@@ -70,6 +72,21 @@ erDiagram
         text leave_type
         text reason
         text approved
+        timestamptz created_at
+    }
+
+    attendance_status {
+        uuid user_id PK, FK
+        boolean logged_in_status
+        timestamptz updated_at
+    }
+
+    attendance_sessions {
+        bigint id PK
+        uuid user_id FK
+        text logged_in
+        text logged_out
+        real duration
         timestamptz created_at
     }
 
@@ -137,7 +154,7 @@ Stores employee wage configuration.
 | :--- | :--- | :--- | :--- |
 | `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Unique record ID |
 | `user_id` | `uuid` | `UNIQUE`, `REFERENCES public.profiles(user_id)` | Linked employee profile |
-| `base_pay` | `numeric` | `CHECK (base_pay >= 0)` | Monthly base wage / gross salary |
+| `base_pay` | `numeric` | `NOT NULL` | Monthly base wage / gross salary |
 | `created_at` | `timestamptz` | `DEFAULT now()` | Record creation timestamp |
 | `updated_at` | `timestamptz` | `DEFAULT now()` | Last update timestamp |
 
@@ -151,7 +168,7 @@ Tracks remaining leave balances per employee.
 | `user_id` | `uuid` | `PRIMARY KEY`, `REFERENCES auth.users(id)` | Linked user account |
 | `sick_leave` | `real` | `NULLABLE`, `DEFAULT 12` | Sick leave quota |
 | `paid_leave` | `bigint` | `NULLABLE` | Paid / vacation leave quota |
-| `unpaid_leave` | `bigint` | `NULLABLE` | Unpaid leave quota / count |
+| `unpaid_leave` | `bigint` | `NULLABLE`, `DEFAULT 0` | Unpaid leave quota / count |
 | `created_at` | `timestamptz` | `DEFAULT now()` | Record creation timestamp |
 
 ---
@@ -170,7 +187,32 @@ Tracks time-off applications, reasons, and approval workflow status.
 
 ---
 
-### 2.7 `public.fcm_tokens`
+### 2.7 `public.attendance_status`
+Tracks live clock-in / clock-out status per employee.
+
+| Column | Data Type | Constraints & Defaults | Description |
+| :--- | :--- | :--- | :--- |
+| `user_id` | `uuid` | `PRIMARY KEY`, `REFERENCES auth.users(id)` | Linked employee |
+| `logged_in_status` | `boolean` | `NOT NULL` | Active clock-in status boolean |
+| `updated_at` | `timestamptz` | `DEFAULT now()` | Last status change timestamp |
+
+---
+
+### 2.8 `public.attendance_sessions`
+Logs individual check-in and check-out attendance intervals.
+
+| Column | Data Type | Constraints & Defaults | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `bigint` | `PRIMARY KEY`, `GENERATED ALWAYS AS IDENTITY` | Session record ID |
+| `user_id` | `uuid` | `NULLABLE`, `REFERENCES auth.users(id)` | Linked employee |
+| `logged_in` | `text` | `NOT NULL` | Check-in timestamp string |
+| `logged_out` | `text` | `NULLABLE` | Check-out timestamp string |
+| `duration` | `real` | `NULLABLE` | Session duration in hours |
+| `created_at` | `timestamptz` | `DEFAULT now()` | Record creation timestamp |
+
+---
+
+### 2.9 `public.fcm_tokens`
 Stores device tokens for push notifications.
 
 | Column | Data Type | Constraints & Defaults | Description |
