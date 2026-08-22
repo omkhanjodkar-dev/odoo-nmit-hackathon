@@ -16,6 +16,41 @@ from app.services.fcm_service import send_multicast_fcm_notification, send_fcm_n
 logger = logging.getLogger(__name__)
 
 VALID_LEAVE_TYPES = {"sick", "paid", "unpaid"}
+REJECTION_REMARK_SEPARATOR = "\n\n--- Admin rejection remark ---\n"
+
+
+def _get_approval_status(row: dict) -> str:
+    return row.get("approval_status") or row.get("approved") or "Waiting for approval"
+
+
+def _split_reason_and_remark(reason: str) -> tuple[str, Optional[str]]:
+    if REJECTION_REMARK_SEPARATOR in reason:
+        employee_reason, remark = reason.split(REJECTION_REMARK_SEPARATOR, 1)
+        return employee_reason.strip(), remark.strip()
+    return reason, None
+
+
+def _attach_rejection_remark(reason: str, remarks: str) -> str:
+    base_reason, _ = _split_reason_and_remark(reason)
+    return f"{base_reason}{REJECTION_REMARK_SEPARATOR}{remarks.strip()}"
+
+
+def _to_leave_log_response(row: dict) -> LeaveLogResponse:
+    raw_reason = row.get("reason") or ""
+    employee_reason, parsed_remark = _split_reason_and_remark(raw_reason)
+    approval_status = _get_approval_status(row)
+
+    return LeaveLogResponse(
+        id=str(row["id"]),
+        user_id=str(row["user_id"]),
+        leave_type=row.get("leave_type") or "",
+        reason=employee_reason,
+        approval_status=approval_status,
+        remarks=parsed_remark if approval_status == "Rejected" else None,
+        uploads=row.get("uploads"),
+        created_at=str(row.get("created_at")) if row.get("created_at") else None,
+        approved_at=str(row.get("approved_at")) if row.get("approved_at") else None,
+    )
 
 
 class LeaveService:
@@ -72,21 +107,17 @@ class LeaveService:
             "user_id": user_id,
             "leave_type": leave_type,
             "reason": payload.reason,
-            "approved": "Waiting for approval",
+            "approval_status": "Waiting for approval",
         }
+        if payload.uploads:
+            record["uploads"] = payload.uploads
+
         try:
             res = supabase.table("leave_log").insert(record).execute()
             row = (res.data or [None])[0]
             if not row:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create leave request")
-            return LeaveLogResponse(
-                id=str(row["id"]),
-                user_id=str(row["user_id"]),
-                leave_type=row["leave_type"],
-                reason=row["reason"],
-                approved=row["approved"],
-                created_at=str(row.get("created_at")) if row.get("created_at") else None,
-            )
+            return _to_leave_log_response(row)
         except HTTPException:
             raise
         except Exception as e:
@@ -103,7 +134,7 @@ class LeaveService:
             res = (
                 supabase.table("leave_log")
                 .select("*")
-                .eq("approved", "Waiting for approval")
+                .eq("approval_status", "Waiting for approval")
                 .order("created_at", desc=False)
                 .execute()
             )
@@ -124,6 +155,7 @@ class LeaveService:
                 prof = profile_map.get(uid, {})
                 personal = personal_map.get(uid, {})
                 name = f"{personal.get('first_name', '')} {personal.get('last_name', '')}".strip()
+                employee_reason, _ = _split_reason_and_remark(row.get("reason") or "")
                 pending.append(
                     LeavePendingResponse(
                         id=str(row["id"]),
@@ -131,8 +163,9 @@ class LeaveService:
                         employee_name=name or "Unknown",
                         employee_id=prof.get("employee_id") or "",
                         leave_type=row.get("leave_type") or "",
-                        reason=row.get("reason") or "",
-                        approved=row.get("approved") or "",
+                        reason=employee_reason,
+                        approval_status=_get_approval_status(row),
+                        uploads=row.get("uploads"),
                         created_at=str(row.get("created_at")) if row.get("created_at") else None,
                     )
                 )
@@ -147,8 +180,8 @@ class LeaveService:
     @staticmethod
     def approve_leave(leave_id: str, payload: LeaveApproveRequest) -> LeaveActionResponse:
         """
-        Approves a pending leave by calling the existing Supabase RPC
-        `approve_leave_request(p_leave_id, p_duration)` defined in docs/schema.md.
+        Approves a pending leave via `approve_leave_request` RPC, which sets
+        approval_status to Approved and approved_at to now().
         """
         supabase = get_supabase_admin()
 
@@ -159,6 +192,9 @@ class LeaveService:
         leave_row = leave_res.data
         user_id = leave_row["user_id"]
         leave_type = leave_row.get("leave_type") or ""
+
+        if _get_approval_status(leave_row) == "Approved":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Leave request is already approved")
 
         try:
             supabase.rpc(
@@ -190,14 +226,7 @@ class LeaveService:
         return LeaveActionResponse(
             success=True,
             message="Leave request approved successfully",
-            leave=LeaveLogResponse(
-                id=str(row["id"]),
-                user_id=str(row["user_id"]),
-                leave_type=row.get("leave_type") or "",
-                reason=row.get("reason") or "",
-                approved=row.get("approved") or "",
-                created_at=str(row.get("created_at")) if row.get("created_at") else None,
-            ),
+            leave=_to_leave_log_response(row),
             balance=balance,
         )
 
@@ -210,16 +239,25 @@ class LeaveService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leave request not found")
 
         leave_row = leave_res.data
-        if leave_row.get("approved") == "Approved":
+        current_status = _get_approval_status(leave_row)
+        if current_status == "Approved":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot reject an approved leave")
+        if current_status == "Rejected":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Leave request is already rejected")
 
         user_id = leave_row["user_id"]
         leave_type = leave_row.get("leave_type") or ""
+        remarks = payload.remarks.strip()
 
         try:
             res = (
                 supabase.table("leave_log")
-                .update({"approved": "Rejected"})
+                .update(
+                    {
+                        "approval_status": "Rejected",
+                        "reason": _attach_rejection_remark(leave_row.get("reason") or "", remarks),
+                    }
+                )
                 .eq("id", leave_id)
                 .execute()
             )
@@ -234,18 +272,11 @@ class LeaveService:
         LeaveService._notify_user(
             str(user_id),
             "Leave Request Rejected",
-            f"Your leave request for {leave_type} was rejected. Remarks: {payload.remarks}",
+            f"Your leave request for {leave_type} was rejected. Remarks: {remarks}",
         )
 
         return LeaveActionResponse(
             success=True,
-            message="Leave request rejected",
-            leave=LeaveLogResponse(
-                id=str(row["id"]),
-                user_id=str(row["user_id"]),
-                leave_type=row.get("leave_type") or "",
-                reason=row.get("reason") or "",
-                approved=row.get("approved") or "",
-                created_at=str(row.get("created_at")) if row.get("created_at") else None,
-            ),
+            message=f"Leave request rejected. Remarks: {remarks}",
+            leave=_to_leave_log_response(row),
         )

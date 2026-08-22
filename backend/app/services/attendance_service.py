@@ -267,7 +267,7 @@ class AttendanceService:
                 supabase.table("leave_log")
                 .select("id")
                 .eq("user_id", user_id)
-                .eq("approved", "Approved")
+                .eq("approval_status", "Approved")
                 .execute()
             )
             leaves_count = len(leave_res.data or [])
