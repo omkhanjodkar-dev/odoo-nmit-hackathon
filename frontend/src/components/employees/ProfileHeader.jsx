@@ -1,5 +1,5 @@
 import React from 'react';
-import { Camera, Edit2, Save, X, Building2, MapPin, User } from 'lucide-react';
+import { Camera, Edit2, Save, X, Building2, MapPin, User, Flame } from 'lucide-react';
 
 export default function ProfileHeader({
   employee,
@@ -93,6 +93,11 @@ export default function ProfileHeader({
                 }`}
               >
                 {isPresent ? '🟢 Present in Office' : isOnLeave ? '✈️ On Leave' : '🟡 Absent'}
+              </span>
+
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1">
+                <Flame className="w-3.5 h-3.5 text-amber-500" />
+                <span>Activity Matrix</span>
               </span>
             </div>
 

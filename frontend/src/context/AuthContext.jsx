@@ -25,30 +25,40 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Login handler accepting email or Employee ID
-  const login = (loginIdentifier, password, roleOverride = null) => {
-    const employees = storage.getEmployees();
-    const query = loginIdentifier.trim().toLowerCase();
+  const login = (loginIdentifier = '', password = '', roleOverride = null) => {
+    const employees = storage.getEmployees() || [];
+    const query = (loginIdentifier || '').trim().toLowerCase();
 
-    let user = employees.find(
-      (e) =>
-        e.email.toLowerCase() === query ||
-        e.employeeId.toLowerCase() === query ||
-        (e.personalEmail && e.personalEmail.toLowerCase() === query)
-    );
+    let user = employees.find((e) => {
+      if (!e) return false;
+      const empEmail = (e.email || '').toLowerCase();
+      const empId = (e.employeeId || e.employee_id || e.id || '').toLowerCase();
+      const empPersonalEmail = (e.personalEmail || e.private_info?.personal_email || '').toLowerCase();
+      const empName = (e.name || `${e.firstName || e.first_name || ''} ${e.lastName || e.last_name || ''}`).trim().toLowerCase();
+
+      return (
+        (empEmail && empEmail === query) ||
+        (empId && empId === query) ||
+        (empPersonalEmail && empPersonalEmail === query) ||
+        (empName && empName === query)
+      );
+    });
 
     if (!user) {
       // Auto create on the fly for demo if unrecognized
       const isHr = roleOverride === 'ADMIN_HR' || query.includes('admin') || query.includes('hr');
       const newId = `emp-${Date.now().toString().slice(-4)}`;
-      const rawName = loginIdentifier.split('@')[0].replace('.', ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+      const rawName = (loginIdentifier || 'Alex Morgan').includes('@')
+        ? (loginIdentifier || '').split('@')[0].replace('.', ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+        : (loginIdentifier || 'Alex Morgan');
 
       user = {
         id: newId,
-        employeeId: `OIJ${rawName.slice(0, 2).toUpperCase()}202500${Math.floor(10 + Math.random() * 90)}`,
+        employeeId: `OIJ${(rawName.slice(0, 2) || 'EM').toUpperCase()}202500${Math.floor(10 + Math.random() * 90)}`,
         name: rawName,
-        firstName: rawName.split(' ')[0],
+        firstName: rawName.split(' ')[0] || 'Employee',
         lastName: rawName.split(' ')[1] || (isHr ? '(Admin)' : ''),
-        email: loginIdentifier.includes('@') ? loginIdentifier.trim() : `${loginIdentifier.trim()}@odooindia.com`,
+        email: (loginIdentifier || '').includes('@') ? loginIdentifier.trim() : `${(loginIdentifier || 'alex.morgan').trim()}@odooindia.com`,
         phone: '+91 98765 00000',
         role: isHr ? 'ADMIN_HR' : 'EMPLOYEE',
         department: isHr ? 'Human Resources' : 'Engineering',
@@ -99,9 +109,10 @@ export const AuthProvider = ({ children }) => {
 
   // Sign up handler with standard Employee ID generation
   const signup = (formData) => {
-    const employees = storage.getEmployees();
+    const employees = storage.getEmployees() || [];
+    const targetEmail = (formData?.email || '').trim().toLowerCase();
     const existing = employees.find(
-      (e) => e.email.toLowerCase() === formData.email.trim().toLowerCase()
+      (e) => e?.email && e.email.toLowerCase() === targetEmail
     );
 
     if (existing) {

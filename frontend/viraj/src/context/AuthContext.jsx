@@ -29,10 +29,21 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Login handler
-  const login = (email, password, roleOverride = null) => {
-    const employees = getEmployees();
-    // Match by email
-    let user = employees.find((e) => e.email.toLowerCase() === email.trim().toLowerCase());
+  const login = (email = '', password = '', roleOverride = null) => {
+    const employees = getEmployees() || [];
+    const query = (email || '').trim().toLowerCase();
+    // Match by email or employee ID
+    let user = employees.find((e) => {
+      if (!e) return false;
+      const empEmail = (e.email || '').toLowerCase();
+      const empId = (e.employee_id || e.employeeId || e.id || '').toLowerCase();
+      const empPersonalEmail = (e.private_info?.personal_email || e.personalEmail || '').toLowerCase();
+      return (
+        (empEmail && empEmail === query) ||
+        (empId && empId === query) ||
+        (empPersonalEmail && empPersonalEmail === query)
+      );
+    });
     
     if (!user) {
       // Create user on-the-fly for demo flexibility if email contains employee/admin
@@ -101,9 +112,10 @@ export const AuthProvider = ({ children }) => {
 
   // Sign up handler
   const signup = (formData) => {
-    const employees = getEmployees();
+    const employees = getEmployees() || [];
+    const targetEmail = (formData?.email || '').trim().toLowerCase();
     const existing = employees.find(
-      (e) => e.email.toLowerCase() === formData.email.trim().toLowerCase() || e.employee_id === formData.employee_id
+      (e) => (e?.email && e.email.toLowerCase() === targetEmail) || (e?.employee_id && formData?.employee_id && e.employee_id === formData.employee_id)
     );
 
     if (existing) {
@@ -170,8 +182,9 @@ export const AuthProvider = ({ children }) => {
 
   // Verify email
   const verifyEmail = (email) => {
-    const employees = getEmployees();
-    const user = employees.find((e) => e.email.toLowerCase() === email.toLowerCase());
+    const employees = getEmployees() || [];
+    const targetEmail = (email || '').trim().toLowerCase();
+    const user = employees.find((e) => e?.email && e.email.toLowerCase() === targetEmail);
     if (user) {
       user.is_verified = true;
       saveEmployee(user);

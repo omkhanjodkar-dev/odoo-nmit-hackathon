@@ -4,17 +4,20 @@ import { useAuth } from '../context/AuthContext';
 import { storage } from '../data/storage';
 import ProfileHeader from '../components/employees/ProfileHeader';
 import ResumeTab from '../components/employees/tabs/ResumeTab';
+import AttendanceActivityTab from '../components/employees/tabs/AttendanceActivityTab';
 import PrivateInfoTab from '../components/employees/tabs/PrivateInfoTab';
 import SalaryInfoTab from '../components/employees/tabs/SalaryInfoTab';
 import SecurityDocumentsTab from '../components/employees/tabs/SecurityDocumentsTab';
 import {
   BookOpen,
+  CalendarDays,
   User,
   DollarSign,
   Shield,
   ChevronRight,
   ArrowLeft,
-  CheckCircle2
+  CheckCircle2,
+  Flame
 } from 'lucide-react';
 
 export default function EmployeeProfilePage() {
@@ -24,7 +27,7 @@ export default function EmployeeProfilePage() {
 
   const [employee, setEmployee] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState('resume');
+  const [activeTab, setActiveTab] = useState('activity');
   const [saveNotice, setSaveNotice] = useState(false);
 
   useEffect(() => {
@@ -74,6 +77,7 @@ export default function EmployeeProfilePage() {
   };
 
   const tabs = [
+    { id: 'activity', label: 'Attendance Log & Grid', icon: CalendarDays, badge: 'Live' },
     { id: 'resume', label: 'Work & Resume', icon: BookOpen },
     { id: 'private', label: 'Private Info', icon: User },
     { id: 'salary', label: 'Salary Info', icon: DollarSign },
@@ -128,6 +132,11 @@ export default function EmployeeProfilePage() {
             >
               <Icon className="w-4 h-4" />
               <span>{tab.label}</span>
+              {tab.badge && (
+                <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-extrabold ${isActive ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'}`}>
+                  {tab.badge}
+                </span>
+              )}
             </button>
           );
         })}
@@ -135,6 +144,12 @@ export default function EmployeeProfilePage() {
 
       {/* Tab Panels */}
       <div>
+        {activeTab === 'activity' && (
+          <AttendanceActivityTab
+            employee={employee}
+            isAdmin={isAdmin}
+          />
+        )}
         {activeTab === 'resume' && (
           <ResumeTab
             employee={employee}

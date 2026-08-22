@@ -149,12 +149,17 @@ export const storage = {
   },
 
   getEmployees() {
-    return this.get(STORAGE_KEYS.EMPLOYEES, INITIAL_EMPLOYEES);
+    const emps = this.get(STORAGE_KEYS.EMPLOYEES, INITIAL_EMPLOYEES);
+    if (!Array.isArray(emps) || emps.length === 0) {
+      return INITIAL_EMPLOYEES;
+    }
+    return emps.filter(Boolean);
   },
 
   getEmployeeById(id) {
+    if (!id) return null;
     const emps = this.getEmployees();
-    return emps.find((e) => e.id === id || e.employeeId === id) || null;
+    return emps.find((e) => e && (e.id === id || e.employeeId === id || e.employee_id === id)) || null;
   },
 
   saveEmployee(employeeData) {

@@ -22,12 +22,17 @@ export const PayrollPage = () => {
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
-      const q = searchQuery.toLowerCase();
+      if (!emp) return false;
+      const q = (searchQuery || '').toLowerCase().trim();
+      const fullName = `${emp.first_name || ''} ${emp.last_name || ''}`.trim();
       const matchesSearch =
-        !searchQuery ||
-        `${emp.first_name} ${emp.last_name}`.toLowerCase().includes(q) ||
-        emp.designation.toLowerCase().includes(q) ||
-        emp.department.toLowerCase().includes(q);
+        !q ||
+        fullName.toLowerCase().includes(q) ||
+        (emp.name && emp.name.toLowerCase().includes(q)) ||
+        emp.designation?.toLowerCase().includes(q) ||
+        emp.department?.toLowerCase().includes(q) ||
+        emp.employee_id?.toLowerCase().includes(q) ||
+        emp.employeeId?.toLowerCase().includes(q);
 
       const matchesDept = !selectedDept || emp.department === selectedDept;
       return matchesSearch && matchesDept;
