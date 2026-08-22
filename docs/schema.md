@@ -72,7 +72,15 @@ erDiagram
         text leave_type
         text reason
         text approval_status
+        date start_date
+        date end_date
+        real duration
+        boolean is_half_day
+        text half_day_period
+        text start_time
+        text end_time
         text uploads
+        text admin_comments
         timestamptz created_at
         timestamptz approved_at
     }
@@ -185,7 +193,15 @@ Tracks time-off applications, reasons, and approval workflow status.
 | `leave_type` | `text` | `NULLABLE` | Leave type (`sick`, `paid`, `unpaid`) |
 | `reason` | `text` | `NOT NULL` | Description / reason for leave |
 | `approval_status` | `text` | `NOT NULL`, `DEFAULT 'Waiting for approval'` | Workflow status (`Waiting for approval`, `Approved`, `Rejected`) |
+| `start_date` | `date` | `NULLABLE` | Leave start date |
+| `end_date` | `date` | `NULLABLE` | Leave end date |
+| `duration` | `real` | `DEFAULT 1.0` | Total leave days / hours duration (e.g. `0.5`, `1.0`, `3.0`) |
+| `is_half_day` | `boolean` | `DEFAULT false` | Flag indicating a half-day or partial-day leave |
+| `half_day_period` | `text` | `NULLABLE` | Period of half day (`first_half`, `second_half`, `custom`) |
+| `start_time` | `text` | `NULLABLE` | Start time for partial/half-day leave (e.g. `09:00`) |
+| `end_time` | `text` | `NULLABLE` | End time for partial/half-day leave (e.g. `13:00`) |
 | `uploads` | `text` | `NULLABLE` | Path/URL to attached document in `uploads` storage bucket |
+| `admin_comments` | `text` | `NULLABLE` | Administrative remarks upon approval or rejection |
 | `created_at` | `timestamptz` | `DEFAULT now()` | Request timestamp |
 | `approved_at` | `timestamptz` | `NULLABLE` | Timestamp when leave was approved |
 
@@ -230,18 +246,19 @@ Stores device tokens for push notifications.
 
 ## 3. Database Functions
 
-### 3.1 `approve_leave_request(p_leave_id UUID, p_duration REAL)`
+### 3.1 `approve_leave_request(p_leave_id UUID, p_duration REAL DEFAULT NULL, p_admin_comments TEXT DEFAULT NULL)`
 Atomically approves a pending leave request and updates the employee's leave balance in a single transaction.
 
 **Parameters:**
 - `p_leave_id` (`UUID`): The ID of the leave request in `leave_log`.
-- `p_duration` (`REAL`): The duration of the leave (e.g., `1`, `0.5`) to deduct from the balance.
+- `p_duration` (`REAL`, optional): The duration of the leave to deduct. If omitted/null, the precalculated `leave_log.duration` is used.
+- `p_admin_comments` (`TEXT`, optional): Administrative notes/remarks recorded on approval.
 
 **Behavior:**
 1. Locks the corresponding `leave_log` row.
 2. Fails if the request is already 'Approved' or not found.
-3. Updates `leave_log.approval_status` to `'Approved'` and sets `leave_log.approved_at` to `now()`.
-4. Deducts the `p_duration` from the corresponding `leave_balance` column (`sick_leave`, `paid_leave`, or `unpaid_leave`) based on the `leave_type`.
+3. Updates `leave_log.approval_status` to `'Approved'`, sets `leave_log.approved_at` to `now()`, and saves `admin_comments`.
+4. Deducts the `duration` from the corresponding `leave_balance` column (`sick_leave`, `paid_leave`, or `unpaid_leave`) based on the `leave_type`.
 
 ---
 

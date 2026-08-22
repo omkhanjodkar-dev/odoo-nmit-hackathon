@@ -36,7 +36,7 @@ async def pending_leaves(admin_user: AuthenticatedUser = Depends(require_role("a
 @router.post("/{leave_id}/approve", response_model=LeaveActionResponse)
 async def approve_leave(
     leave_id: str,
-    payload: LeaveApproveRequest,
+    payload: LeaveApproveRequest = LeaveApproveRequest(),
     admin_user: AuthenticatedUser = Depends(require_role("admin")),
 ):
     return LeaveService.approve_leave(leave_id, payload)

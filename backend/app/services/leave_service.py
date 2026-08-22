@@ -1,5 +1,6 @@
 import logging
-from typing import List, Optional
+from datetime import date, datetime, time
+from typing import List, Optional, Tuple
 from fastapi import HTTPException, status
 from app.core.supabase import get_supabase_admin
 from app.schemas.leave import (
@@ -16,38 +17,170 @@ from app.services.fcm_service import send_multicast_fcm_notification, send_fcm_n
 logger = logging.getLogger(__name__)
 
 VALID_LEAVE_TYPES = {"sick", "paid", "unpaid"}
-REJECTION_REMARK_SEPARATOR = "\n\n--- Admin rejection remark ---\n"
+MAX_HALF_DAY_HOURS = 4.5
+FULL_DAY_HOURS = 8.0
+
+
+def _parse_time(time_str: Optional[str]) -> Optional[time]:
+    if not time_str:
+        return None
+    cleaned = time_str.strip()
+    for fmt in ("%H:%M", "%H:%M:%S", "%I:%M %p", "%I:%M%p"):
+        try:
+            return datetime.strptime(cleaned, fmt).time()
+        except ValueError:
+            pass
+    return None
+
+
+def _validate_and_compute_leave(
+    payload: LeaveApplyRequest,
+) -> Tuple[str, str, float, bool, Optional[str], Optional[str], Optional[str]]:
+    """
+    Validates leave dates, half-day timings, and enforces operational limits:
+    - Half-day leaves cannot span multiple dates.
+    - Half-day timing cannot exceed MAX_HALF_DAY_HOURS (4.5 hours) or a full workday (8.0 hours).
+    - Multi-day leaves must have end_date >= start_date.
+    Returns: (start_date, end_date, duration, is_half_day, half_day_period, start_time, end_time)
+    """
+    today_str = date.today().isoformat()
+    start_date_str = (payload.start_date or today_str).strip()
+    end_date_str = (payload.end_date or start_date_str).strip()
+
+    try:
+        d_start = date.fromisoformat(start_date_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid start_date format '{start_date_str}'. Expected YYYY-MM-DD.",
+        )
+
+    try:
+        d_end = date.fromisoformat(end_date_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid end_date format '{end_date_str}'. Expected YYYY-MM-DD.",
+        )
+
+    if payload.is_half_day:
+        if d_start != d_end:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A half-day leave cannot span multiple dates. start_date and end_date must be identical.",
+            )
+
+        duration = 0.5
+        start_time_val = None
+        end_time_val = None
+
+        if payload.start_time and payload.end_time:
+            t_start = _parse_time(payload.start_time)
+            t_end = _parse_time(payload.end_time)
+
+            if not t_start:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid start_time format '{payload.start_time}'. Expected HH:MM (e.g. 09:30).",
+                )
+            if not t_end:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid end_time format '{payload.end_time}'. Expected HH:MM (e.g. 13:30).",
+                )
+
+            dt_start = datetime.combine(d_start, t_start)
+            dt_end = datetime.combine(d_start, t_end)
+
+            if dt_end <= dt_start:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="end_time must be later than start_time.",
+                )
+
+            hours = (dt_end - dt_start).total_seconds() / 3600.0
+
+            if hours > MAX_HALF_DAY_HOURS or hours >= FULL_DAY_HOURS:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Half-day leave duration ({hours:.1f} hours) exceeds the half-day limit "
+                        f"(maximum {MAX_HALF_DAY_HOURS} hours). For a full working day (8 hours), "
+                        f"please submit a standard full-day leave request."
+                    ),
+                )
+
+            start_time_val = t_start.strftime("%H:%M")
+            end_time_val = t_end.strftime("%H:%M")
+            duration = 0.5
+
+        elif payload.duration is not None:
+            if payload.duration > 0.5 or payload.duration <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Half-day duration cannot exceed 0.5 days (4 hours). For longer duration, submit a full-day leave.",
+                )
+            duration = float(payload.duration)
+
+        half_day_period = payload.half_day_period or (
+            "first_half" if (start_time_val and start_time_val < "13:00") else "second_half"
+        )
+
+        return (
+            d_start.isoformat(),
+            d_end.isoformat(),
+            duration,
+            True,
+            half_day_period,
+            start_time_val,
+            end_time_val,
+        )
+
+    else:
+        if d_end < d_start:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="end_date cannot be earlier than start_date.",
+            )
+
+        days_count = (d_end - d_start).days + 1
+        duration = float(payload.duration) if (payload.duration and payload.duration > 0) else float(days_count)
+
+        return (
+            d_start.isoformat(),
+            d_end.isoformat(),
+            duration,
+            False,
+            None,
+            None,
+            None,
+        )
 
 
 def _get_approval_status(row: dict) -> str:
     return row.get("approval_status") or row.get("approved") or "Waiting for approval"
 
 
-def _split_reason_and_remark(reason: str) -> tuple[str, Optional[str]]:
-    if REJECTION_REMARK_SEPARATOR in reason:
-        employee_reason, remark = reason.split(REJECTION_REMARK_SEPARATOR, 1)
-        return employee_reason.strip(), remark.strip()
-    return reason, None
-
-
-def _attach_rejection_remark(reason: str, remarks: str) -> str:
-    base_reason, _ = _split_reason_and_remark(reason)
-    return f"{base_reason}{REJECTION_REMARK_SEPARATOR}{remarks.strip()}"
-
-
 def _to_leave_log_response(row: dict) -> LeaveLogResponse:
-    raw_reason = row.get("reason") or ""
-    employee_reason, parsed_remark = _split_reason_and_remark(raw_reason)
     approval_status = _get_approval_status(row)
+    admin_comments = row.get("admin_comments") or row.get("remark")
 
     return LeaveLogResponse(
         id=str(row["id"]),
         user_id=str(row["user_id"]),
         leave_type=row.get("leave_type") or "",
-        reason=employee_reason,
+        reason=row.get("reason") or "",
         approval_status=approval_status,
-        remarks=parsed_remark if approval_status == "Rejected" else None,
+        approved=approval_status,
+        start_date=str(row.get("start_date")) if row.get("start_date") else None,
+        end_date=str(row.get("end_date")) if row.get("end_date") else None,
+        duration=float(row["duration"]) if row.get("duration") is not None else 1.0,
+        is_half_day=bool(row.get("is_half_day")),
+        half_day_period=row.get("half_day_period"),
+        start_time=row.get("start_time"),
+        end_time=row.get("end_time"),
         uploads=row.get("uploads"),
+        admin_comments=admin_comments,
         created_at=str(row.get("created_at")) if row.get("created_at") else None,
         approved_at=str(row.get("approved_at")) if row.get("approved_at") else None,
     )
@@ -102,12 +235,23 @@ class LeaveService:
                 detail=f"Invalid leave_type. Must be one of: {', '.join(sorted(VALID_LEAVE_TYPES))}",
             )
 
+        start_date_val, end_date_val, duration_val, is_half_day_val, half_day_period_val, start_time_val, end_time_val = (
+            _validate_and_compute_leave(payload)
+        )
+
         supabase = get_supabase_admin()
         record = {
             "user_id": user_id,
             "leave_type": leave_type,
             "reason": payload.reason,
             "approval_status": "Waiting for approval",
+            "start_date": start_date_val,
+            "end_date": end_date_val,
+            "duration": duration_val,
+            "is_half_day": is_half_day_val,
+            "half_day_period": half_day_period_val,
+            "start_time": start_time_val,
+            "end_time": end_time_val,
         }
         if payload.uploads:
             record["uploads"] = payload.uploads
@@ -155,7 +299,8 @@ class LeaveService:
                 prof = profile_map.get(uid, {})
                 personal = personal_map.get(uid, {})
                 name = f"{personal.get('first_name', '')} {personal.get('last_name', '')}".strip()
-                employee_reason, _ = _split_reason_and_remark(row.get("reason") or "")
+                approval_status = _get_approval_status(row)
+
                 pending.append(
                     LeavePendingResponse(
                         id=str(row["id"]),
@@ -163,9 +308,18 @@ class LeaveService:
                         employee_name=name or "Unknown",
                         employee_id=prof.get("employee_id") or "",
                         leave_type=row.get("leave_type") or "",
-                        reason=employee_reason,
-                        approval_status=_get_approval_status(row),
+                        reason=row.get("reason") or "",
+                        approval_status=approval_status,
+                        approved=approval_status,
+                        start_date=str(row.get("start_date")) if row.get("start_date") else None,
+                        end_date=str(row.get("end_date")) if row.get("end_date") else None,
+                        duration=float(row["duration"]) if row.get("duration") is not None else 1.0,
+                        is_half_day=bool(row.get("is_half_day")),
+                        half_day_period=row.get("half_day_period"),
+                        start_time=row.get("start_time"),
+                        end_time=row.get("end_time"),
                         uploads=row.get("uploads"),
+                        admin_comments=row.get("admin_comments") or row.get("remark"),
                         created_at=str(row.get("created_at")) if row.get("created_at") else None,
                     )
                 )
@@ -180,8 +334,8 @@ class LeaveService:
     @staticmethod
     def approve_leave(leave_id: str, payload: LeaveApproveRequest) -> LeaveActionResponse:
         """
-        Approves a pending leave via `approve_leave_request` RPC, which sets
-        approval_status to Approved and approved_at to now().
+        Approves a pending leave via `approve_leave_request` RPC, setting
+        approval_status to Approved, recording approved_at, and updating leave balance.
         """
         supabase = get_supabase_admin()
 
@@ -196,10 +350,16 @@ class LeaveService:
         if _get_approval_status(leave_row) == "Approved":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Leave request is already approved")
 
+        rpc_duration = payload.duration or leave_row.get("duration") or 1.0
+
         try:
             supabase.rpc(
                 "approve_leave_request",
-                {"p_leave_id": leave_id, "p_duration": payload.duration},
+                {
+                    "p_leave_id": leave_id,
+                    "p_duration": rpc_duration,
+                    "p_admin_comments": payload.admin_comments,
+                },
             ).execute()
         except Exception as e:
             err = str(e)
@@ -255,7 +415,8 @@ class LeaveService:
                 .update(
                     {
                         "approval_status": "Rejected",
-                        "reason": _attach_rejection_remark(leave_row.get("reason") or "", remarks),
+                        "admin_comments": remarks,
+                        "remark": remarks,
                     }
                 )
                 .eq("id", leave_id)
