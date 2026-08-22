@@ -29,13 +29,11 @@ async def register_fcm_token(
         data_payload = {
             "user_id": payload.user_id,
             "fcm_token": payload.fcm_token,
-            "updated_at": "now()",
         }
 
-        # Upsert by unique fcm_token
         res = supabase.table("fcm_tokens").upsert(
             data_payload,
-            on_conflict="fcm_token"
+            on_conflict="fcm_token",
         ).execute()
 
         return FCMTokenResponse(
