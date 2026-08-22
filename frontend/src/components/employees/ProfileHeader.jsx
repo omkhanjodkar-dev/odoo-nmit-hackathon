@@ -1,5 +1,5 @@
 import React from 'react';
-import { Camera, Edit2, Save, X, Building2, MapPin, Mail, Phone, User, Shield } from 'lucide-react';
+import { Camera, Edit2, Save, X, Building2, MapPin, User } from 'lucide-react';
 
 export default function ProfileHeader({
   employee,
@@ -10,7 +10,6 @@ export default function ProfileHeader({
   canEditJobDetails,
 }) {
   const handleAvatarChange = () => {
-    // Generate a fresh random professional avatar
     const randomSeed = Math.floor(Math.random() * 1000);
     const newAvatar = `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80&sig=${randomSeed}`;
     onChangeField('avatar', newAvatar);
@@ -60,7 +59,7 @@ export default function ProfileHeader({
                       onChangeField('name', `${newFirst} ${employee.lastName || ''}`);
                     }}
                     placeholder="First Name"
-                    className="px-2.5 py-1 text-lg font-bold border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#714B67]"
+                    className="px-2.5 py-1 text-lg font-bold border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   <input
                     type="text"
@@ -71,7 +70,7 @@ export default function ProfileHeader({
                       onChangeField('name', `${employee.firstName || ''} ${newLast}`);
                     }}
                     placeholder="Last Name"
-                    className="px-2.5 py-1 text-lg font-bold border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#714B67]"
+                    className="px-2.5 py-1 text-lg font-bold border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               ) : (
@@ -80,7 +79,7 @@ export default function ProfileHeader({
                 </h1>
               )}
 
-              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-purple-50 text-[#714B67] border border-purple-200/60">
+              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/60">
                 {employee.employeeId}
               </span>
 
@@ -105,10 +104,10 @@ export default function ProfileHeader({
                   value={employee.designation || ''}
                   onChange={(e) => onChangeField('designation', e.target.value)}
                   placeholder="Designation"
-                  className="px-2 py-0.5 text-xs font-semibold border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#714B67]"
+                  className="px-2 py-0.5 text-xs font-semibold border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               ) : (
-                <span className="font-bold text-[#714B67]">{employee.designation}</span>
+                <span className="font-bold text-indigo-600">{employee.designation}</span>
               )}
               <span className="text-slate-300">•</span>
               {isEditing && canEditJobDetails ? (
@@ -117,7 +116,7 @@ export default function ProfileHeader({
                   value={employee.department || ''}
                   onChange={(e) => onChangeField('department', e.target.value)}
                   placeholder="Department"
-                  className="px-2 py-0.5 text-xs font-semibold border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#714B67]"
+                  className="px-2 py-0.5 text-xs font-semibold border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               ) : (
                 <span className="text-slate-500 font-medium">{employee.department}</span>
@@ -167,7 +166,7 @@ export default function ProfileHeader({
             <button
               type="button"
               onClick={onToggleEdit}
-              className="px-4 py-2 rounded-xl bg-[#714B67] hover:bg-[#5a3b52] text-white text-xs font-bold shadow-xs transition-all flex items-center gap-2"
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/25 transition-all flex items-center gap-2"
             >
               <Edit2 className="w-3.5 h-3.5" />
               <span>Edit Profile</span>

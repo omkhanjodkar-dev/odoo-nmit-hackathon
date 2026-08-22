@@ -48,7 +48,7 @@ export default function EmployeeProfilePage() {
         <p className="text-xs text-slate-500 mt-1">The requested profile does not exist in directory records.</p>
         <button
           onClick={() => navigate('/employees')}
-          className="mt-4 px-4 py-2 bg-[#714B67] text-white text-xs font-bold rounded-xl"
+          className="mt-4 px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl"
         >
           Back to Employees
         </button>
@@ -85,7 +85,7 @@ export default function EmployeeProfilePage() {
       {/* Breadcrumb Bar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-          <Link to="/employees" className="hover:text-[#714B67] flex items-center gap-1 font-semibold">
+          <Link to="/employees" className="hover:text-indigo-600 flex items-center gap-1 font-semibold">
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Employees Directory</span>
           </Link>
@@ -122,7 +122,7 @@ export default function EmployeeProfilePage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 isActive
-                  ? 'bg-[#714B67] text-white shadow-xs'
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >

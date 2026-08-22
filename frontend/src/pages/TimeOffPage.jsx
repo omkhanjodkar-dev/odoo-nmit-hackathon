@@ -127,7 +127,7 @@ export default function TimeOffPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-sm text-[#714B67] font-semibold mb-0.5">
+          <div className="flex items-center gap-2 text-sm text-indigo-600 font-semibold mb-0.5">
             <Plane className="w-4 h-4" />
             <span>Time Off & Leave Management</span>
           </div>
@@ -143,7 +143,7 @@ export default function TimeOffPage() {
 
         <button
           onClick={() => setIsApplyModalOpen(true)}
-          className="px-4 py-2.5 rounded-xl bg-[#714B67] hover:bg-[#5a3b52] text-white text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-2"
+          className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/25 transition-all flex items-center justify-center gap-2"
         >
           <Plus className="w-4 h-4" />
           <span>New Time Off Request</span>
@@ -168,7 +168,7 @@ export default function TimeOffPage() {
                 onClick={() => setActiveTab(tab.key)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   activeTab === tab.key
-                    ? 'bg-white text-[#714B67] shadow-xs'
+                    ? 'bg-white text-indigo-600 shadow-xs'
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
@@ -185,14 +185,14 @@ export default function TimeOffPage() {
                 placeholder="Search requests..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40"
+                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
               />
             </div>
 
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 cursor-pointer"
+              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 cursor-pointer"
             >
               <option value="ALL">All Leave Types</option>
               <option value="Paid Time Off">Paid Time Off</option>
@@ -234,7 +234,7 @@ export default function TimeOffPage() {
       {previewAttachment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl p-6 border border-slate-100 text-center">
-            <div className="w-12 h-12 rounded-2xl bg-purple-50 text-[#714B67] flex items-center justify-center mx-auto mb-3">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3">
               <FileText className="w-6 h-6" />
             </div>
             <h3 className="font-extrabold text-slate-900 text-sm">{previewAttachment.fileName}</h3>
@@ -246,7 +246,7 @@ export default function TimeOffPage() {
 
             <button
               onClick={() => setPreviewAttachment(null)}
-              className="mt-5 px-5 py-2 text-xs font-bold bg-[#714B67] text-white rounded-xl hover:bg-[#5a3b52] transition-colors"
+              className="mt-5 px-5 py-2 text-xs font-bold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
             >
               Close Preview
             </button>

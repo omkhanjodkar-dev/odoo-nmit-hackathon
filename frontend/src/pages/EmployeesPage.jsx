@@ -4,7 +4,7 @@ import { storage, STORAGE_KEYS } from '../data/storage';
 import EmployeeKanban from '../components/employees/EmployeeKanban';
 import EmployeeTable from '../components/employees/EmployeeTable';
 import AddEmployeeModal from '../components/employees/AddEmployeeModal';
-import { Users, Search, Plus, LayoutGrid, List, Filter } from 'lucide-react';
+import { Users, Search, Plus, LayoutGrid, List } from 'lucide-react';
 
 export default function EmployeesPage() {
   const { isAdmin } = useAuth();
@@ -57,7 +57,7 @@ export default function EmployeesPage() {
       {/* Header Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-sm text-[#714B67] font-semibold mb-0.5">
+          <div className="flex items-center gap-2 text-sm text-indigo-600 font-semibold mb-0.5">
             <Users className="w-4 h-4" />
             <span>Organization Directory</span>
           </div>
@@ -78,7 +78,7 @@ export default function EmployeesPage() {
               onClick={() => setViewMode('kanban')}
               className={`p-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
                 viewMode === 'kanban'
-                  ? 'bg-white text-[#714B67] shadow-xs'
+                  ? 'bg-white text-indigo-600 shadow-xs'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
               title="Kanban Cards Grid"
@@ -90,7 +90,7 @@ export default function EmployeesPage() {
               onClick={() => setViewMode('table')}
               className={`p-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
                 viewMode === 'table'
-                  ? 'bg-white text-[#714B67] shadow-xs'
+                  ? 'bg-white text-indigo-600 shadow-xs'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
               title="Table List View"
@@ -104,7 +104,7 @@ export default function EmployeesPage() {
           {isAdmin && (
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-[#714B67] hover:bg-[#5a3b52] text-white text-xs font-bold shadow-sm transition-all flex items-center gap-2"
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/25 transition-all flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
               <span>NEW</span>
@@ -123,7 +123,7 @@ export default function EmployeesPage() {
               placeholder="Search by name, role, email, ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 focus:border-[#714B67]"
+              className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
             />
           </div>
 
@@ -131,7 +131,7 @@ export default function EmployeesPage() {
             <select
               value={selectedDept}
               onChange={(e) => setSelectedDept(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 cursor-pointer"
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 cursor-pointer"
             >
               <option value="ALL">All Departments</option>
               {departmentOptions.filter((d) => d !== 'ALL').map((d) => (
@@ -144,7 +144,7 @@ export default function EmployeesPage() {
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 cursor-pointer"
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 cursor-pointer"
             >
               <option value="ALL">All Statuses</option>
               <option value="PRESENT">🟢 Present in Office</option>

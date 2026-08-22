@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Building2, User, Mail, Phone, Lock, Eye, EyeOff, CheckCircle, ArrowRight, Upload } from 'lucide-react';
+import { Building2, User, Mail, Phone, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import EmailVerificationModal from '../components/auth/EmailVerificationModal';
 
 export default function SignUpPage() {
@@ -68,7 +68,7 @@ export default function SignUpPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-10">
       <div className="sm:mx-auto sm:w-full sm:max-w-lg text-center mb-6">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#714B67] text-white shadow-lg shadow-purple-900/15 mb-3">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white shadow-xl shadow-indigo-500/25 mb-3">
           <span className="font-extrabold text-xl tracking-tight">D</span>
         </div>
         <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
@@ -103,7 +103,7 @@ export default function SignUpPage() {
                   value={formData.companyName}
                   onChange={handleChange}
                   placeholder="e.g. Odoo India"
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 focus:border-[#714B67]"
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
                   required
                 />
               </div>
@@ -117,7 +117,7 @@ export default function SignUpPage() {
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 focus:border-[#714B67]"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
               >
                 <option value="EMPLOYEE">Standard Employee</option>
                 <option value="ADMIN_HR">HR Administrator</option>
@@ -141,7 +141,7 @@ export default function SignUpPage() {
                   value={formData.name}
                   onChange={handleChange}
                   placeholder="e.g. Rohan Sharma"
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 focus:border-[#714B67]"
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
                   required
                 />
               </div>
@@ -161,7 +161,7 @@ export default function SignUpPage() {
                   value={formData.phone}
                   onChange={handleChange}
                   placeholder="+91 98765 00000"
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 focus:border-[#714B67]"
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
                 />
               </div>
             </div>
@@ -182,7 +182,7 @@ export default function SignUpPage() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="rohan.sharma@odooindia.com"
-                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 focus:border-[#714B67]"
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
                 required
               />
             </div>
@@ -200,7 +200,7 @@ export default function SignUpPage() {
                 value={formData.department}
                 onChange={handleChange}
                 placeholder="Engineering"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 focus:border-[#714B67]"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
               />
             </div>
 
@@ -214,7 +214,7 @@ export default function SignUpPage() {
                 value={formData.designation}
                 onChange={handleChange}
                 placeholder="Software Engineer"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 focus:border-[#714B67]"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
               />
             </div>
           </div>
@@ -235,7 +235,7 @@ export default function SignUpPage() {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="Min. 8 characters"
-                  className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 focus:border-[#714B67]"
+                  className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
                   required
                 />
               </div>
@@ -255,7 +255,7 @@ export default function SignUpPage() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   placeholder="Re-enter password"
-                  className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 focus:border-[#714B67]"
+                  className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
                   required
                 />
               </div>
@@ -265,7 +265,7 @@ export default function SignUpPage() {
           <div className="pt-3">
             <button
               type="submit"
-              className="w-full py-2.5 px-4 rounded-xl bg-[#714B67] hover:bg-[#5a3b52] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+              className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-600/25 transition-all flex items-center justify-center gap-2"
             >
               <span>Create Account & Verify</span>
               <ArrowRight className="w-4 h-4" />
@@ -276,7 +276,7 @@ export default function SignUpPage() {
         <div className="mt-6 pt-5 border-t border-slate-100 text-center">
           <p className="text-xs text-slate-500 font-medium">
             Already have an account?{' '}
-            <Link to="/signin" className="font-bold text-[#714B67] hover:underline">
+            <Link to="/signin" className="font-bold text-indigo-600 hover:underline">
               Sign In here
             </Link>
           </p>

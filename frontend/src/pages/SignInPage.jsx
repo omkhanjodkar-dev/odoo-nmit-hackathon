@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, Eye, EyeOff, ShieldCheck, User, ArrowRight, Sparkles, Building2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ShieldCheck, User, ArrowRight, Sparkles } from 'lucide-react';
 
 export default function SignInPage() {
   const { login } = useAuth();
@@ -53,11 +53,11 @@ export default function SignInPage() {
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-12">
       {/* Brand Header */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-6">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#714B67] text-white shadow-lg shadow-purple-900/15 mb-3.5">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white shadow-xl shadow-indigo-500/25 mb-3.5">
           <span className="font-extrabold text-2xl tracking-tight">D</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center justify-center gap-2">
-          Dayflow <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-purple-100 text-[#714B67]">HRMS</span>
+          Dayflow <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">HRMS</span>
         </h1>
         <p className="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-wider">
           Enterprise Human Resource System
@@ -77,7 +77,7 @@ export default function SignInPage() {
         <div className="bg-slate-50 rounded-xl p-3 mb-6 border border-slate-100">
           <div className="flex items-center justify-between text-xs font-bold text-slate-500 mb-2">
             <span className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-[#714B67]" />
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
               Quick Demo Persona
             </span>
             <span className="text-[10px] text-slate-400 font-medium">1-click switch</span>
@@ -88,7 +88,7 @@ export default function SignInPage() {
               onClick={() => handleQuickRole('ADMIN_HR')}
               className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
                 selectedRole === 'ADMIN_HR'
-                  ? 'bg-[#714B67] text-white shadow-sm'
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
                   : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
               }`}
             >
@@ -101,7 +101,7 @@ export default function SignInPage() {
               onClick={() => handleQuickRole('EMPLOYEE')}
               className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
                 selectedRole === 'EMPLOYEE'
-                  ? 'bg-[#714B67] text-white shadow-sm'
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
                   : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
               }`}
             >
@@ -131,7 +131,7 @@ export default function SignInPage() {
                 value={loginId}
                 onChange={(e) => setLoginId(e.target.value)}
                 placeholder="e.g. alex.morgan@odooindia.com or OIJODO20220001"
-                className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 focus:border-[#714B67] transition-all"
+                className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all"
                 required
               />
             </div>
@@ -155,7 +155,7 @@ export default function SignInPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 focus:border-[#714B67] transition-all"
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all"
                 required
               />
               <button
@@ -172,7 +172,7 @@ export default function SignInPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-2.5 px-4 rounded-xl bg-[#714B67] hover:bg-[#5a3b52] text-white font-bold text-sm shadow-md shadow-purple-900/20 transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#714B67]/50"
+              className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             >
               {isLoading ? (
                 <span>Signing in...</span>
@@ -189,7 +189,7 @@ export default function SignInPage() {
         <div className="mt-6 pt-6 border-t border-slate-100 text-center">
           <p className="text-xs text-slate-500 font-medium">
             New organization workspace?{' '}
-            <Link to="/signup" className="font-bold text-[#714B67] hover:underline">
+            <Link to="/signup" className="font-bold text-indigo-600 hover:underline">
               Create an Account
             </Link>
           </p>

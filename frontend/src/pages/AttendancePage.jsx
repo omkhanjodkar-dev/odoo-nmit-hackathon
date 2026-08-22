@@ -39,7 +39,6 @@ export default function AttendancePage() {
 
   const filteredRecords = useMemo(() => {
     return attendanceRecords.filter((record) => {
-      // Employee sees only their own unless Admin
       if (!isAdmin && record.employeeId !== activeUser?.id) {
         return false;
       }
@@ -88,7 +87,7 @@ export default function AttendancePage() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-sm text-[#714B67] font-semibold mb-0.5">
+          <div className="flex items-center gap-2 text-sm text-indigo-600 font-semibold mb-0.5">
             <Calendar className="w-4 h-4" />
             <span>Time & Attendance Tracking</span>
           </div>

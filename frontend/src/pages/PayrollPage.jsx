@@ -28,7 +28,6 @@ export default function PayrollPage() {
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
-      // If not admin, only show self
       if (!isAdmin && emp.id !== activeUser?.id) {
         return false;
       }
@@ -65,7 +64,7 @@ export default function PayrollPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-sm text-[#714B67] font-semibold mb-0.5">
+          <div className="flex items-center gap-2 text-sm text-indigo-600 font-semibold mb-0.5">
             <DollarSign className="w-4 h-4" />
             <span>Compensation & Payroll Management</span>
           </div>
@@ -81,7 +80,7 @@ export default function PayrollPage() {
 
         {isAdmin && (
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold px-3 py-1.5 bg-purple-50 text-[#714B67] rounded-xl border border-purple-100 flex items-center gap-1.5">
+            <span className="text-xs font-bold px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-100 flex items-center gap-1.5">
               <FileSpreadsheet className="w-3.5 h-3.5" />
               <span>Oct 2025 Cycle</span>
             </span>
@@ -109,7 +108,7 @@ export default function PayrollPage() {
               placeholder="Search by employee name, role, department..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40"
+              className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
             />
           </div>
 
@@ -117,7 +116,7 @@ export default function PayrollPage() {
             <select
               value={selectedDept}
               onChange={(e) => setSelectedDept(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 cursor-pointer"
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 cursor-pointer"
             >
               <option value="ALL">All Departments</option>
               {departmentOptions.filter((d) => d !== 'ALL').map((d) => (

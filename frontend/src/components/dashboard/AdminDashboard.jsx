@@ -10,7 +10,6 @@ import {
   ArrowRight,
   CheckCircle2,
   XCircle,
-  Plus,
   Shield,
   TrendingUp,
   FileCheck
@@ -19,22 +18,18 @@ import {
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [employees, setEmployees] = useState(() => storage.getEmployees());
-  const [attendance, setAttendance] = useState(() => storage.getAttendance());
   const [leaveRequests, setLeaveRequests] = useState(() => storage.getLeaveRequests());
 
   useEffect(() => {
     const unsubEmps = storage.subscribe(STORAGE_KEYS.EMPLOYEES, (e) => e && setEmployees(e));
-    const unsubAtt = storage.subscribe(STORAGE_KEYS.ATTENDANCE, (a) => a && setAttendance(a));
     const unsubLeaves = storage.subscribe(STORAGE_KEYS.LEAVE_REQUESTS, (l) => l && setLeaveRequests(l));
 
     return () => {
       unsubEmps();
-      unsubAtt();
       unsubLeaves();
     };
   }, []);
 
-  // Compute live headcount & attendance stats
   const totalEmployees = employees.length;
   const presentToday = employees.filter((e) => e.status === 'present' || e.attendance_status === 'PRESENT').length;
   const onLeaveToday = employees.filter((e) => e.status === 'on_leave' || e.attendance_status === 'LEAVE').length;
@@ -77,16 +72,16 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6 pb-12 animate-fadeIn">
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-[#714B67] to-[#5a3b52] rounded-3xl p-6 sm:p-8 text-white shadow-lg shadow-purple-900/10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-slate-900/10 border border-slate-800 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-xs font-bold text-purple-100 mb-2 border border-white/20">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 backdrop-blur-sm text-xs font-bold text-indigo-300 mb-2 border border-indigo-500/30">
             <Shield className="w-3.5 h-3.5" />
             <span>HR Administration Portal</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
             Organization Workplace Overview
           </h1>
-          <p className="text-purple-200/90 text-sm mt-1 max-w-xl">
+          <p className="text-slate-300 text-sm mt-1 max-w-xl">
             Real-time workforce attendance, leave approvals queue, and company-wide compensation metrics.
           </p>
         </div>
@@ -94,14 +89,14 @@ export default function AdminDashboard() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => navigate('/employees')}
-            className="px-4 py-2.5 rounded-xl bg-white text-[#714B67] font-bold text-xs shadow-sm hover:bg-purple-50 transition-all flex items-center gap-2"
+            className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/30 transition-all flex items-center gap-2"
           >
             <Users className="w-4 h-4" />
             <span>Employees Directory</span>
           </button>
           <button
             onClick={() => navigate('/payroll')}
-            className="px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs border border-white/20 transition-all flex items-center gap-2"
+            className="px-4 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-white font-bold text-xs border border-slate-700 transition-all flex items-center gap-2"
           >
             <TrendingUp className="w-4 h-4" />
             <span>Payroll Structure</span>
@@ -115,7 +110,7 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Workforce</span>
-            <div className="w-9 h-9 rounded-xl bg-purple-50 text-[#714B67] flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
               <Users className="w-5 h-5" />
             </div>
           </div>
@@ -175,14 +170,14 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-                <FileCheck className="w-5 h-5 text-[#714B67]" />
+                <FileCheck className="w-5 h-5 text-indigo-600" />
                 Pending Leave Applications
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">Require administrator review and balance allocation</p>
             </div>
             <button
               onClick={() => navigate('/time-off')}
-              className="text-xs font-bold text-[#714B67] hover:underline flex items-center gap-1"
+              className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"
             >
               <span>View All</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -211,7 +206,7 @@ export default function AdminDashboard() {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-slate-900">{req.employeeName}</span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-[#714B67]">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
                           {req.leaveType}
                         </span>
                       </div>
@@ -250,12 +245,12 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-              <Clock className="w-5 h-5 text-[#714B67]" />
+              <Clock className="w-5 h-5 text-indigo-600" />
               Today's Punch Feed
             </h2>
             <button
               onClick={() => navigate('/attendance')}
-              className="text-xs font-bold text-[#714B67] hover:underline"
+              className="text-xs font-bold text-indigo-600 hover:underline"
             >
               Manage Logs
             </button>
