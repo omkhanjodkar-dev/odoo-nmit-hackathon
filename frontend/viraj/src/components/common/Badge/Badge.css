@@ -1,0 +1,96 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-family-heading);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-full);
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.badge-sm {
+  padding: 3px 8px;
+  font-size: var(--font-size-xs);
+}
+
+.badge-md {
+  padding: 5px 12px;
+  font-size: var(--font-size-xs);
+}
+
+.badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: currentColor;
+  flex-shrink: 0;
+}
+
+/* Variants */
+.badge-present {
+  background-color: var(--status-present-bg);
+  color: var(--status-present-text);
+  border-color: var(--status-present-border);
+}
+.badge-present .badge-dot {
+  background-color: var(--status-present);
+}
+
+.badge-leave {
+  background-color: var(--status-leave-bg);
+  color: var(--status-leave-text);
+  border-color: var(--status-leave-border);
+}
+.badge-leave .badge-dot {
+  background-color: var(--status-leave);
+}
+
+.badge-absent {
+  background-color: var(--status-absent-bg);
+  color: var(--status-absent-text);
+  border-color: var(--status-absent-border);
+}
+.badge-absent .badge-dot {
+  background-color: var(--status-absent);
+}
+
+.badge-halfday {
+  background-color: var(--status-halfday-bg);
+  color: var(--status-halfday-text);
+  border-color: var(--status-halfday-border);
+}
+.badge-halfday .badge-dot {
+  background-color: var(--status-halfday);
+}
+
+.badge-pending {
+  background-color: var(--status-pending-bg);
+  color: var(--status-pending-text);
+  border-color: var(--status-pending-border);
+}
+.badge-pending .badge-dot {
+  background-color: var(--status-pending);
+}
+
+.badge-rejected {
+  background-color: var(--status-rejected-bg);
+  color: var(--status-rejected-text);
+  border-color: var(--status-rejected-border);
+}
+.badge-rejected .badge-dot {
+  background-color: var(--status-rejected);
+}
+
+.badge-primary {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+  border-color: var(--color-primary-glow);
+}
+
+.badge-neutral {
+  background-color: var(--bg-muted);
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
+}

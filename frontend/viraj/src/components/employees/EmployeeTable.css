@@ -1,0 +1,62 @@
+.table-employee-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.table-employee-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-muted);
+}
+
+.table-employee-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.table-employee-name {
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.table-employee-id {
+  font-family: var(--font-family-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.table-dept-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.table-designation-text {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.table-dept-text {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.table-contact-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-size-xs);
+}
+
+.table-email-text {
+  color: var(--text-secondary);
+}
+
+.table-phone-text {
+  color: var(--text-muted);
+}
