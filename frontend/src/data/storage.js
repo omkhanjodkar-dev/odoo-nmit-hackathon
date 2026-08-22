@@ -1,23 +1,20 @@
 /**
- * Dayflow HRMS Storage Service
- * Provides a clean abstraction over localStorage with initial mock data seeding,
- * CRUD operations, and reactive event subscriptions.
+ * Dayflow HRMS Unified Reactive Storage Service
+ * Provides reactive pub/sub state synchronization across tabs & components.
  */
 
 import { INITIAL_EMPLOYEES } from './mockEmployees';
 import { INITIAL_ATTENDANCE } from './mockAttendance';
 import { INITIAL_LEAVE_BALANCES, INITIAL_LEAVE_REQUESTS } from './mockLeaves';
-import { INITIAL_SALARY_STRUCTURES } from './mockPayroll';
 
 export const STORAGE_KEYS = {
   EMPLOYEES: 'dayflow_employees',
   ATTENDANCE: 'dayflow_attendance',
   LEAVE_BALANCES: 'dayflow_leave_balances',
   LEAVE_REQUESTS: 'dayflow_leave_requests',
-  PAYROLL: 'dayflow_payroll',
   CURRENT_USER: 'dayflow_current_user',
+  IMPERSONATED_USER_ID: 'dayflow_impersonated_user_id',
   SYSTRAY_STATE: 'dayflow_systray_state',
-  ALERTS: 'dayflow_alerts',
 };
 
 const STORAGE_EVENT = 'dayflow_storage_change';
@@ -44,21 +41,17 @@ export function initStorage() {
     localStorage.setItem(STORAGE_KEYS.LEAVE_REQUESTS, JSON.stringify(INITIAL_LEAVE_REQUESTS));
   }
 
-  if (!localStorage.getItem(STORAGE_KEYS.PAYROLL)) {
-    localStorage.setItem(STORAGE_KEYS.PAYROLL, JSON.stringify(INITIAL_SALARY_STRUCTURES));
-  }
-
   if (!localStorage.getItem(STORAGE_KEYS.CURRENT_USER)) {
-    // Default current user to John Doe (Employee)
+    // Default current user to Alex Morgan (HR Admin)
     localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(INITIAL_EMPLOYEES[0]));
   }
 
   if (!localStorage.getItem(STORAGE_KEYS.SYSTRAY_STATE)) {
     const defaultSystray = {
-      status: 'checked_in', // default checked in for demo
+      status: 'checked_in',
       checkInTime: '09:00 AM',
-      checkInTimestamp: new Date(Date.now() - 3.5 * 60 * 60 * 1000).toISOString(), // 3.5 hours ago
-      elapsedSeconds: 12600, // 3h 30m
+      checkInTimestamp: new Date(Date.now() - 4.5 * 60 * 60 * 1000).toISOString(),
+      elapsedSeconds: 16200, // 4h 30m
       isRunning: true,
       lastTick: Date.now(),
     };
@@ -66,16 +59,10 @@ export function initStorage() {
   }
 }
 
-// Auto initialize on module import
+// Auto initialize
 initStorage();
 
-/**
- * Storage Abstraction API
- */
 export const storage = {
-  /**
-   * Get value from localStorage with fallback
-   */
   get(key, defaultValue = null) {
     try {
       const item = localStorage.getItem(key);
@@ -87,9 +74,6 @@ export const storage = {
     }
   },
 
-  /**
-   * Set value in localStorage and dispatch change event
-   */
   set(key, value) {
     try {
       const serialized = JSON.stringify(value);
@@ -108,9 +92,6 @@ export const storage = {
     }
   },
 
-  /**
-   * Update existing value in localStorage using an updater function or merge object
-   */
   update(key, updater) {
     const current = this.get(key);
     const updated = typeof updater === 'function' ? updater(current) : { ...current, ...updater };
@@ -118,9 +99,6 @@ export const storage = {
     return updated;
   },
 
-  /**
-   * Remove item from localStorage
-   */
   remove(key) {
     try {
       localStorage.removeItem(key);
@@ -138,9 +116,6 @@ export const storage = {
     }
   },
 
-  /**
-   * Clear all Dayflow keys and reseed defaults
-   */
   reset() {
     Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
     initStorage();
@@ -149,9 +124,6 @@ export const storage = {
     }
   },
 
-  /**
-   * Subscribe to storage change events
-   */
   subscribe(targetKey, callback) {
     if (typeof window === 'undefined') return () => {};
 
@@ -165,17 +137,44 @@ export const storage = {
     return () => window.removeEventListener(STORAGE_EVENT, handler);
   },
 
-  // Helper convenience methods
+  // Convenience Methods
   getCurrentUser() {
     return this.get(STORAGE_KEYS.CURRENT_USER, INITIAL_EMPLOYEES[0]);
   },
 
   setCurrentUser(user) {
-    return this.set(STORAGE_KEYS.CURRENT_USER, user);
+    this.set(STORAGE_KEYS.CURRENT_USER, user);
+    this.remove(STORAGE_KEYS.IMPERSONATED_USER_ID);
+    return user;
   },
 
   getEmployees() {
     return this.get(STORAGE_KEYS.EMPLOYEES, INITIAL_EMPLOYEES);
+  },
+
+  getEmployeeById(id) {
+    const emps = this.getEmployees();
+    return emps.find((e) => e.id === id || e.employeeId === id) || null;
+  },
+
+  saveEmployee(employeeData) {
+    const employees = this.getEmployees();
+    const existingIdx = employees.findIndex((e) => e.id === employeeData.id);
+    let updated;
+    if (existingIdx >= 0) {
+      updated = [...employees];
+      updated[existingIdx] = { ...updated[existingIdx], ...employeeData };
+    } else {
+      updated = [employeeData, ...employees];
+    }
+    this.set(STORAGE_KEYS.EMPLOYEES, updated);
+
+    // If current active user was modified, sync session
+    const current = this.getCurrentUser();
+    if (current && current.id === employeeData.id) {
+      this.setCurrentUser({ ...current, ...employeeData });
+    }
+    return employeeData;
   },
 
   getAttendance() {
@@ -190,15 +189,23 @@ export const storage = {
     return this.get(STORAGE_KEYS.LEAVE_REQUESTS, INITIAL_LEAVE_REQUESTS);
   },
 
-  getPayroll() {
-    return this.get(STORAGE_KEYS.PAYROLL, INITIAL_SALARY_STRUCTURES);
-  },
-
   getSystrayState() {
     return this.get(STORAGE_KEYS.SYSTRAY_STATE, null);
   },
 
   setSystrayState(state) {
     return this.set(STORAGE_KEYS.SYSTRAY_STATE, state);
+  },
+
+  getImpersonatedUserId() {
+    return this.get(STORAGE_KEYS.IMPERSONATED_USER_ID, null);
+  },
+
+  setImpersonatedUserId(id) {
+    if (id) {
+      this.set(STORAGE_KEYS.IMPERSONATED_USER_ID, id);
+    } else {
+      this.remove(STORAGE_KEYS.IMPERSONATED_USER_ID);
+    }
   }
 };

@@ -1,23 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { storage, STORAGE_KEYS } from '../data/storage';
-import EmployeeDashboard from '../components/dashboard/EmployeeDashboard';
+import React from 'react';
+import { useAuth } from '../context/AuthContext';
 import AdminDashboard from '../components/dashboard/AdminDashboard';
-import { Shield, UserCheck } from 'lucide-react';
+import EmployeeDashboard from '../components/dashboard/EmployeeDashboard';
 
 export default function DashboardPage() {
-  const [currentUser, setCurrentUser] = useState(() => storage.getCurrentUser());
-
-  useEffect(() => {
-    const unsubUser = storage.subscribe(STORAGE_KEYS.CURRENT_USER, (user) => {
-      if (user) setCurrentUser(user);
-    });
-    return () => unsubUser();
-  }, []);
-
-  const isAdmin = currentUser?.role === 'ADMIN_HR';
+  const { isAdmin } = useAuth();
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {isAdmin ? <AdminDashboard /> : <EmployeeDashboard />}
     </div>
   );
